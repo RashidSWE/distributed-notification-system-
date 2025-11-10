@@ -1,5 +1,4 @@
 
-````markdown
 # Distributed Notification System
 
 ## 🚀 Project Overview
