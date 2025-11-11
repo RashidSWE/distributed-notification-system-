@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
@@ -57,12 +58,27 @@ func main() {
 	defer rabbitMQ.Close()
 	logger.Info("RabbitMQ connected successfully")
 
-	// Initialize circuit breaker
+	// initialize the circuit breaker
 	circuitBreaker := push.NewCircuitBreaker(
 		cfg.Circuit.MaxRequests,
 		cfg.Circuit.FailureThreshold,
 		time.Duration(cfg.Circuit.Interval)*time.Second,
 		time.Duration(cfg.Circuit.Timeout)*time.Second,
 	)
+
+	ctx := context.Background()
+	fcmService, err := push.NewFCMService(
+		ctx,
+		cfg.FCM.ProjectID,
+		cfg.FCM.CredentialsPath,
+		cfg.FCM.Timeout,
+		circuitBreaker,
+	)
+	if err != nil {
+		logger.Fatal("Failed to initialize FCM service", logger.Fields{
+			"error": err.Error(),
+		})
+	}
+	logger.Info("FCM service initialized successfully")
 
 }
