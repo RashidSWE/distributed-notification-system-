@@ -145,6 +145,7 @@ func (s *FCMService) SendToMultipleDevices(ctx context.Context, deviceTokens []s
 
 	// check circuit breaker
 	if err := s.circuitBreaker.Call(func() error {
+
 		// create timeout context
 		ctx, cancel := context.WithTimeout(ctx, s.timeout)
 		defer cancel()
@@ -252,7 +253,7 @@ func (s *FCMService) ValidateDeviceToken(ctx context.Context, deviceToken string
 	}
 
 	// FCM doesn't have a direct validation endpoint
-	// so I'm validating by attempting a dry-run send
+	// so I'm validating by attempting a dry run send
 	message := &messaging.Message{
 		Token: deviceToken,
 		Notification: &messaging.Notification{

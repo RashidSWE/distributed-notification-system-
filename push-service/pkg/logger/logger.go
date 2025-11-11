@@ -14,7 +14,7 @@ const (
 	UserIDKey         = "user_id"
 	DeviceToken       = "device_toke"
 	EmailKey          = "email"
-	NotificationIdKey = "session_id"
+	NotificationIdKey = "notification_id"
 	IPKey             = "ip"
 	ErrorKey          = "error"
 	CallerKey         = "caller"

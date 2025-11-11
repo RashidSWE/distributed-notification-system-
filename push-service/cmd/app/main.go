@@ -9,6 +9,7 @@ import (
 	"github.com/zjoart/distributed-notification-system/push-service/internal/database"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/queue"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/service"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 
 	"github.com/joho/godotenv"
@@ -74,11 +75,34 @@ func main() {
 		cfg.FCM.Timeout,
 		circuitBreaker,
 	)
+
 	if err != nil {
 		logger.Fatal("Failed to initialize FCM service", logger.Fields{
 			"error": err.Error(),
 		})
 	}
 	logger.Info("FCM service initialized successfully")
+
+	retryService := service.NewRetryService(
+		cfg.Retry.MaxAttempts,
+		cfg.Retry.InitialInterval,
+		cfg.Retry.MaxInterval,
+		cfg.Retry.Multiplier,
+	)
+
+	notificationService := service.NewNotificationService(
+		fcmService,
+		retryService,
+		redisCache,
+	)
+
+	consumerCtx, cancelConsumer := context.WithCancel(context.Background())
+	if err := rabbitMQ.Consume(consumerCtx, notificationService.ProcessNotification); err != nil {
+		logger.Fatal("Failed to start consuming messages", logger.Fields{
+			"error": err.Error(),
+		})
+	}
+
+	cancelConsumer()
 
 }

@@ -117,7 +117,7 @@ func (r *CreateNotificationRequest) Validate() error {
 	return nil
 }
 
-// validates  UpdateNotificationStatusRequest
+// validates UpdateNotificationStatusRequest
 func (r *UpdateNotificationStatusRequest) Validate() error {
 	if r.NotificationID == "" {
 		return ErrInvalidNotificationID
