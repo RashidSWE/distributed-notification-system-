@@ -32,16 +32,9 @@ class EmailQueueService:
         return EmailResponse(request_id=request_id, status="sent")
 
     def fetch_user_profile(self, user_id: str) -> UserProfile:
-        # response = requests.post(f"{os.getenv('USER_SERVICE_URL')}/users/profile", json={"user_id": user_id})
-        # response.raise_for_status()
-        # user_data = response.json()
-        user_data = {
-            "name": "John Doe",
-            "email": "john.doe@example.com",
-            "push_token": "some_push_token",
-            "preference": {"email": True, "push": False},
-            "password": "hashed_password"
-        }
+        response = requests.post(f"{os.getenv('USER_SERVICE_URL')}/users/profile", json={"user_id": user_id})
+        response.raise_for_status()
+        user_data = response.json()
         return UserProfile(**user_data)
 
     def fetch_render_template(self, template_code: str, context: dict, format: str = "html") -> dict:
