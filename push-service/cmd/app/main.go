@@ -4,6 +4,7 @@ import (
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/database"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/queue"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 
 	"github.com/joho/godotenv"
@@ -37,5 +38,20 @@ func main() {
 
 	defer redisCache.Close()
 	logger.Info("Redis connected successfully")
+
+	rabbitMQ, err := queue.NewRabbitMQ(
+		cfg.GetRabbitMQURL(),
+		cfg.RabbitMQ.Exchange,
+		cfg.RabbitMQ.PushQueue,
+		cfg.RabbitMQ.FailedQueue,
+		cfg.RabbitMQ.PrefetchCount,
+	)
+	if err != nil {
+		logger.Fatal("Failed to connect to RabbitMQ", logger.Fields{
+			"error": err.Error(),
+		})
+	}
+	defer rabbitMQ.Close()
+	logger.Info("RabbitMQ connected successfully")
 
 }

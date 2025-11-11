@@ -11,13 +11,13 @@ var (
 
 // common field keys
 const (
-	UserIDKey    = "user_id"
-	DeviceToken  = "device_toke"
-	EmailKey     = "email"
-	SessionIDKey = "session_id"
-	IPKey        = "ip"
-	ErrorKey     = "error"
-	CallerKey    = "caller"
+	UserIDKey         = "user_id"
+	DeviceToken       = "device_toke"
+	EmailKey          = "email"
+	NotificationIdKey = "session_id"
+	IPKey             = "ip"
+	ErrorKey          = "error"
+	CallerKey         = "caller"
 )
 
 func init() {
@@ -112,10 +112,10 @@ func WithEmail(email string) Fields {
 	}
 }
 
-// adds a session ID field to the log entry
-func WithSessionID(sessionID string) Fields {
+// adds a notification ID field to the log entry
+func WithNotificationID(notificationId string) Fields {
 	return Fields{
-		SessionIDKey: sessionID,
+		NotificationIdKey: notificationId,
 	}
 }
 
