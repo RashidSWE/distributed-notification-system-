@@ -128,7 +128,7 @@ func Load() *Config {
 	return config
 }
 
-func (c *Config) GetPostgresConnectionString() string {
+func (c *Config) GetPostgresDSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		c.Postgres.Host,
