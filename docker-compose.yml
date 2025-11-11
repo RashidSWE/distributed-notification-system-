@@ -23,6 +23,21 @@ services:
     networks:
       - notification_net
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user_service_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - notification_net
+
+
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
@@ -36,8 +51,24 @@ services:
     networks:
       - notification_net
 
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+    networks:
+      - notification_net
+
+
 volumes:
   rabbitmq_data:
+  postgres_data:
 
 networks:
   notification_net:
