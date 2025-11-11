@@ -1,9 +1,12 @@
 package main
 
 import (
+	"time"
+
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/database"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/queue"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 
@@ -53,5 +56,13 @@ func main() {
 	}
 	defer rabbitMQ.Close()
 	logger.Info("RabbitMQ connected successfully")
+
+	// Initialize circuit breaker
+	circuitBreaker := push.NewCircuitBreaker(
+		cfg.Circuit.MaxRequests,
+		cfg.Circuit.FailureThreshold,
+		time.Duration(cfg.Circuit.Interval)*time.Second,
+		time.Duration(cfg.Circuit.Timeout)*time.Second,
+	)
 
 }
