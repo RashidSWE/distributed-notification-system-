@@ -1,8 +1,11 @@
 import Fastify from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import userRoutes from './routes/user.routes.js';
 
 const app = Fastify({ logger: true });
 const prisma = new PrismaClient();
+
+await userRoutes(app);
 
 app.decorate('prisma', prisma);
 
