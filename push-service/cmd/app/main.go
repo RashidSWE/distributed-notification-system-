@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/database"
+	handler "github.com/zjoart/distributed-notification-system/push-service/internal/handlers"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/queue"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/server"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/service"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 
@@ -96,13 +101,51 @@ func main() {
 		redisCache,
 	)
 
+	healthHandler := handler.NewHealthHandler(db, rabbitMQ, redisCache)
+	notificationHandler := handler.NewNotificationHandler(notificationService, rabbitMQ)
+
+	httpServer := server.NewServer(
+		cfg.Server.Host,
+		cfg.Server.Port,
+		healthHandler,
+		notificationHandler,
+	)
+
+	// start HTTP server in goroutine
+	go func() {
+		if err := httpServer.Start(); err != nil {
+			logger.Fatal("Failed to start HTTP server", logger.WithError(err))
+		}
+	}()
+
 	consumerCtx, cancelConsumer := context.WithCancel(context.Background())
 	if err := rabbitMQ.Consume(consumerCtx, notificationService.ProcessNotification); err != nil {
-		logger.Fatal("Failed to start consuming messages", logger.Fields{
+		logger.Fatal("Failed to start consuming messages", logger.WithError(err))
+	}
+
+	logger.Info("Push Service started successfully", logger.Fields{
+		"http_port": cfg.Server.Port,
+		"queue":     cfg.RabbitMQ.PushQueue,
+	})
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutting down Push Service")
+
+	cancelConsumer()
+
+	// shutdown gracefully
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Error shutting down HTTP server", logger.Fields{
 			"error": err.Error(),
 		})
 	}
 
-	cancelConsumer()
+	logger.Info("Push Service stopped")
 
 }

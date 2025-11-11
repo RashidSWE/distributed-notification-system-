@@ -13,7 +13,6 @@ var (
 const (
 	UserIDKey         = "user_id"
 	DeviceToken       = "device_toke"
-	EmailKey          = "email"
 	NotificationIdKey = "notification_id"
 	IPKey             = "ip"
 	ErrorKey          = "error"
@@ -102,13 +101,6 @@ func WithError(err error) Fields {
 func WithUserID(userID string) Fields {
 	return Fields{
 		UserIDKey: userID,
-	}
-}
-
-// adds an email field to the log entry
-func WithEmail(email string) Fields {
-	return Fields{
-		EmailKey: email,
 	}
 }
 

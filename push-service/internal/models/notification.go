@@ -103,31 +103,6 @@ type NotificationStatusResponse struct {
 	RequestID     string                 `json:"request_id,omitempty"`
 }
 
-// Validate validates the CreateNotificationRequest
-func (r *CreateNotificationRequest) Validate() error {
-	if r.UserID == "" {
-		return ErrInvalidUserID
-	}
-	if r.TemplateCode == "" {
-		return ErrEmptyNotificationContent
-	}
-	if r.RequestID == "" {
-		return ErrInvalidRequestID
-	}
-	return nil
-}
-
-// validates UpdateNotificationStatusRequest
-func (r *UpdateNotificationStatusRequest) Validate() error {
-	if r.NotificationID == "" {
-		return ErrInvalidNotificationID
-	}
-	if r.Status != NotificationStatusDelivered && r.Status != NotificationStatusPending && r.Status != NotificationStatusFailed {
-		return ErrInvalidNotificationStatus
-	}
-	return nil
-}
-
 // validates notification message
 func (n *NotificationMessage) Validate() error {
 	if n.ID == "" {
