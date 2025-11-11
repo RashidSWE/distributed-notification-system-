@@ -4,10 +4,12 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+
 generator client {
-  provider = "prisma-client-js"
-  //output   = "../src/generated"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
 }
+
 
 datasource db {
   provider = "postgresql"
@@ -16,13 +18,22 @@ datasource db {
 
 
 model User {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
-  email       String   @unique
+  email       String     @unique
   password    String
   push_token  String?
-  preferences Json
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  preference  Preference?  @relation("UserPreference")
 }
 
+model Preference {
+  id         String   @id @default(uuid())
+  email      Boolean  @default(true)
+  push       Boolean  @default(true)
+  user_id    String   @unique
+  user       User     @relation("UserPreference", fields: [user_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
