@@ -7,11 +7,17 @@ interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  pushToken?: string;
+  push_token?: string;
   preferences?: { email: boolean; push: boolean };
 }
 
+type PreferenceUpdateData = {
+  email?: boolean;
+  push?: boolean;
+};
+
 export const createUser = async (data: CreateUserInput) => {
+  console.log("Creating user with data:", data);
   const hashedPassword = await hashPassword(data.password);
 
   return prisma.user.create({
@@ -19,7 +25,7 @@ export const createUser = async (data: CreateUserInput) => {
       name: data.name,
       email: data.email,
       password: hashedPassword,
-      ...(data.pushToken && { push_token: data.pushToken }),
+      ...(data.push_token && { push_token: data.push_token }),
       preference: {
         create: data.preferences || { email: true, push: true },
       },
@@ -39,12 +45,22 @@ export const loginUser = async (email: string, password: string) => {
   return { user, token };
 };
 
-export const updatePreferences = async (userId: string, prefs: any) => {
-  return prisma.preference.update({
+export const updatePreferences = async (userId: string, prefs: PreferenceUpdateData) => {
+  prisma.preference.update({
     where: { user_id: userId },
     data: prefs,
   });
+
+  return prisma.user.findUnique({ where: { id: userId }, include: { preference: true }});
 };
+
+export const updatePushToken = async (userId: string, push_token: string) => {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { push_token },
+  });
+};
+
 
 export const getUserById = async (userId: string) => {
   return prisma.user.findUnique({
