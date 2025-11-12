@@ -39,9 +39,9 @@ services:
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_USER: pushuser
-      POSTGRES_PASSWORD: pushpass
-      POSTGRES_DB: pushdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user_service_db
     ports:
       - "5432:5432"
     volumes:
@@ -54,6 +54,31 @@ services:
     networks:
       - notification_net
 
+  email-service:
+    build: ./email-service
+    container_name: email-service
+    ports:
+      - "8100:8080"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - redis
+    networks:
+      - notification_net
+
+  template-service:
+    build: ./template-service
+    container_name: template-service
+    ports:
+      - "8200:8080"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - redis
+    networks:
+      - notification_net
 
   api-gateway:
     build: ./api-gateway
