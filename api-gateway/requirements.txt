@@ -3,3 +3,4 @@ uvicorn
 aio_pika
 redis
 python-dotenv
+PyJWT==2.8.0
