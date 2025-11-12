@@ -31,9 +31,7 @@ func main() {
 	db, err := database.LoadPostgres(cfg.GetPostgresDSN())
 
 	if err != nil {
-		logger.Fatal("Failed to connect to database", logger.Fields{
-			"error": err.Error(),
-		})
+		logger.Fatal("Failed to connect to database", logger.WithError(err))
 	}
 
 	defer db.Close()
@@ -41,9 +39,7 @@ func main() {
 
 	redisCache, err := cache.NewRedisCache(cfg.GetRedisAddr(), cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
-		logger.Fatal("Failed to connect to Redis", logger.Fields{
-			"error": err.Error(),
-		})
+		logger.Fatal("Failed to connect to Redis", logger.WithError(err))
 	}
 
 	defer redisCache.Close()
@@ -82,9 +78,7 @@ func main() {
 	)
 
 	if err != nil {
-		logger.Fatal("Failed to initialize FCM service", logger.Fields{
-			"error": err.Error(),
-		})
+		logger.Fatal("Failed to initialize FCM service", logger.WithError(err))
 	}
 	logger.Info("FCM service initialized successfully")
 
@@ -142,9 +136,7 @@ func main() {
 	defer shutdownCancel()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		logger.Error("Error shutting down HTTP server", logger.Fields{
-			"error": err.Error(),
-		})
+		logger.Error("Error shutting down HTTP server", logger.WithError(err))
 	}
 
 	logger.Info("Push Service stopped")

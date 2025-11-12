@@ -12,36 +12,16 @@ clean: ## Remove build artifacts and cache
 	go clean
 
 
-# Run the app
+
 run: ## Run the app
 	@echo "🚀 Running app:"
 	go run $(CMD_DIR)/main.go
 
 
-# --- Database Migrations ---
-migrate-up: ## Run all migrations
-	@echo "Running migrations..."
-	go run cmd/migrate/main.go -command=up
 
-migrate-down: ## Rollback one migration
-	@echo "Rolling back migration..."
-	go run cmd/migrate/main.go -command=down
-
-migrate-version: ## Show current migration version
-	go run cmd/migrate/main.go -command=version
-
-migrate-force: ## Force migration version (Usage: make migrate-force VERSION=1)
-	go run cmd/migrate/main.go -command=force -version=$(VERSION)
-
-migrate-steps: ## Run n migration steps (Usage: make migrate-steps STEPS=1)
-	go run cmd/migrate/main.go -command=steps -steps=$(STEPS)
-
-
-# --- Tidy go.mod ---
 tidy: ## Tidy go.mod and go.sum
 	@echo "🧹 Tidying go.mod and go.sum..."
 	go mod tidy
-
 
 
 test: ## Run all tests
@@ -65,31 +45,38 @@ test-function: ## Usage: make test-function TEST=TestGetAllJournals
 	go test -v -run ^$(TEST)$$
 
 
-# Run all tests in the project,
 test-log: ## Run all tests in the project, including showing logs
 	go test -v ./... 
 
 
-# Build the application
+
 build: ## Build the application binary
 	@echo "🔨 Building application..."
 	CGO_ENABLED=0 go build -o bin/push-service ./cmd/app/main.go
 
 
-# Docker commands (run from root directory)
+
 DOCKER_COMPOSE := docker compose -f ../docker-compose.yml
 
-docker-build: ## Build Docker image
+docker-build: ## Build Docker image for push-service
 	@echo "🐳 Building Docker image..."
 	docker build -t push-service:latest .
 
-docker-run: ## Run Docker container (standalone)
-	@echo "🐳 Running Docker container..."
-	docker run --env-file .env -p 8081:8081 push-service:latest
+docker-run-standalone: ## Run push-service as standalone container (requires external dependencies)
+	@echo "🐳 Running push-service container..."
+	docker run --env-file .env -p 8081:8081 --name push-service push-service:latest
 
-docker-up: ## Start all services with docker-compose (PostgreSQL, Redis, RabbitMQ, Push Service)
+docker-up: ## Start all services with docker-compose (PostgreSQL, Redis, RabbitMQ, API Gateway, User Service, Push Service)
 	@echo "🐳 Starting all services with docker-compose..."
 	cd .. && docker compose up -d
+
+docker-up-deps: ## Start only dependencies (PostgreSQL, Redis, RabbitMQ)
+	@echo "🐳 Starting dependencies..."
+	cd .. && docker compose up -d postgres redis rabbitmq
+
+docker-up-push: ## Start push-service with dependencies
+	@echo "🐳 Starting push-service with dependencies..."
+	cd .. && docker compose up -d postgres redis rabbitmq push-service
 
 docker-down: ## Stop all services
 	@echo "🛑 Stopping all services..."
@@ -109,6 +96,10 @@ docker-rebuild: ## Rebuild and restart push-service
 	@echo "🔨 Rebuilding push-service..."
 	cd .. && docker compose up -d --build push-service
 
+docker-stop-push: ## Stop only push-service
+	@echo "🛑 Stopping push-service..."
+	cd .. && docker compose stop push-service
+
 docker-clean: ## Remove all containers, volumes, and images
 	@echo "🧹 Cleaning up Docker resources..."
 	cd .. && docker compose down -v
@@ -117,14 +108,17 @@ docker-clean: ## Remove all containers, volumes, and images
 docker-ps: ## Show running containers
 	cd .. && docker compose ps
 
+docker-shell: ## Open shell in push-service container
+	@echo "🐚 Opening shell in push-service container..."
+	cd .. && docker compose exec push-service sh
+
 # Full stack testing
 docker-test: docker-rebuild ## Rebuild service and show logs for testing
 	@echo "✅ Service rebuilt. Waiting for startup..."
-	@sleep 3
+	@sleep 5
 	@echo "📋 Service is ready at http://localhost:8081"
-	@echo "📋 RabbitMQ Management: http://localhost:15672 (guest/guest)"
 	@echo "📋 Health check: curl http://localhost:8081/api/health"
-	@docker-compose logs -f push-service
+	@cd .. && docker compose logs -f push-service
 
 
 # --- Documentation ---
