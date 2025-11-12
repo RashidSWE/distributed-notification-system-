@@ -192,34 +192,50 @@ func (s *FCMService) SendToMultipleDevices(ctx context.Context, deviceTokens []s
 
 		batchResponse, err := s.client.SendEachForMulticast(ctx, message)
 		if err != nil {
-			logger.Error("Failed to send FCM multicast", logger.Fields{
-				"error": err.Error(),
-			})
+			logger.Error("Failed to send FCM multicast", logger.WithError(err))
 			return err
 		}
 
-		for i, resp := range batchResponse.Responses {
-			result := &models.NotificationResult{
-				DeviceToken: deviceTokens[i],
-				SentAt:      time.Now(),
-			}
+		if batchResponse.Responses == nil || len(batchResponse.Responses) != len(deviceTokens) {
+			logger.Error("FCM multicast response mismatch", logger.Fields{
+				"responses_nil": batchResponse.Responses == nil,
+				"responses_len": len(batchResponse.Responses),
+				"tokens_len":    len(deviceTokens),
+			})
 
-			if resp.Success {
-				result.Success = true
-				result.MessageID = resp.MessageID
-			} else {
-				result.Success = false
-				result.Error = resp.Error.Error()
-
-				logger.Error("Failed to send to device", logger.Fields{
-					"device_token": deviceTokens[i],
-					"error":        resp.Error.Error(),
+			// mark all as failed
+			for _, token := range deviceTokens {
+				results = append(results, &models.NotificationResult{
+					DeviceToken: token,
+					Success:     false,
+					Error:       "FCM multicast response mismatch",
+					SentAt:      time.Now(),
 				})
 			}
+		} else {
 
-			results = append(results, result)
+			for i, resp := range batchResponse.Responses {
+				result := &models.NotificationResult{
+					DeviceToken: deviceTokens[i],
+					SentAt:      time.Now(),
+				}
+
+				if resp.Success {
+					result.Success = true
+					result.MessageID = resp.MessageID
+				} else {
+					result.Success = false
+					result.Error = resp.Error.Error()
+
+					logger.Error("Failed to send to device", logger.Fields{
+						"device_token": deviceTokens[i],
+						"error":        resp.Error.Error(),
+					})
+				}
+
+				results = append(results, result)
+			}
 		}
-
 		logger.Info("FCM multicast sent", logger.Fields{
 			"success_count": batchResponse.SuccessCount,
 			"failure_count": batchResponse.FailureCount,

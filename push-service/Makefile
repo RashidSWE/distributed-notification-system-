@@ -117,7 +117,7 @@ docker-test: docker-rebuild ## Rebuild service and show logs for testing
 	@echo "✅ Service rebuilt. Waiting for startup..."
 	@sleep 5
 	@echo "📋 Service is ready at http://localhost:8081"
-	@echo "📋 Health check: curl http://localhost:8081/api/health"
+	@echo "📋 Health check: curl http://localhost:8081/health"
 	@cd .. && docker compose logs -f push-service
 
 

@@ -28,7 +28,10 @@ type ApiResponse struct {
 func WriteJSON(w http.ResponseWriter, status int, resp any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(resp)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Error("failed to encode JSON response", logger.WithError(err))
+	}
 }
 
 // writes a success response with default status code 200 OK
@@ -89,18 +92,19 @@ func RespondWithValidationError(w http.ResponseWriter, validationErrors any) {
 
 // returns a human readable validation error message
 func GetValidationErrorMessage(err validator.FieldError) string {
+	fieldName := err.Field()
 	switch err.Tag() {
 	case "required":
-		return "This field is required"
+		return "Field '" + fieldName + "' is required"
 	case "email":
-		return "Must be a valid email address"
+		return "Field '" + fieldName + "' must be a valid email address"
 	case "min":
-		return "Must be at least " + err.Param() + " characters long"
+		return "Field '" + fieldName + "' must be at least " + err.Param() + " characters long"
 	case "max":
-		return "Must be at most " + err.Param() + " characters long"
+		return "Field '" + fieldName + "' must be at most " + err.Param() + " characters long"
 	case "oneof":
-		return "Must be one of: " + err.Param()
+		return "Field '" + fieldName + "' must be one of: " + err.Param()
 	default:
-		return "Invalid value"
+		return "Field '" + fieldName + "' has an invalid value"
 	}
 }

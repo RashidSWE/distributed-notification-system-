@@ -12,7 +12,7 @@ var (
 // common field keys
 const (
 	UserIDKey         = "user_id"
-	DeviceToken       = "device_toke"
+	DeviceToken       = "device_token"
 	NotificationIdKey = "notification_id"
 	IPKey             = "ip"
 	ErrorKey          = "error"

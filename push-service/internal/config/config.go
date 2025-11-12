@@ -115,7 +115,7 @@ func Load() *Config {
 		},
 		FCM: FCMConfig{
 			ProjectID:       getEnv("FCM_PROJECT_ID"),
-			CredentialsPath: getEnv("FCM_CREDENTIALS_PATH"),
+			CredentialsPath: getEnv("FCM_CREDENTIALS_FILE"),
 			Timeout:         getEnvAsInt("FCM_TIMEOUT"),
 		},
 		Circuit: CircuitBreakerConfig{
