@@ -37,6 +37,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres
+    restart: always
     environment:
       POSTGRES_USER: pushuser
       POSTGRES_PASSWORD: pushpass
@@ -96,7 +97,7 @@ services:
     build: ./user-service
     container_name: user-service
     ports:
-      - "8001:8001"
+      - "5000:5000"
     env_file:
       - .env
     depends_on:
