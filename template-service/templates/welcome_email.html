@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Welcome to Notifications Hub</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; color: #222;">
+    <h2>Welcome, {{ user_name | default('friend') }}!</h2>
+    <p>Thanks for joining <strong>{{ product_name | default('Notifications Hub') }}</strong>.</p>
+    <p>We are excited to have you aboard.</p>
+    <p style="margin-top: 24px;">Cheers,<br />HNG Team 25</p>
+  </body>
+</html>

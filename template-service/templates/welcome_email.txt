@@ -1,0 +1,7 @@
+Hello {{ user_name | default('friend') }},
+
+Thank you for joining {{ product_name | default('Notifications Hub') }}.
+We are excited to have you aboard.
+
+Cheers,
+HNG Team 25
