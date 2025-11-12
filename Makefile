@@ -20,9 +20,6 @@ docker-down: ## Stop all services
 docker-logs: ## Show logs from all services
 	docker compose logs -f
 
-docker-logs-push: ## Show logs from push-service only
-	docker compose logs -f push-service
-
 docker-restart: ## Restart
 	@echo "🔄 Restarting push-service..."
 	docker compose restart
@@ -39,6 +36,9 @@ docker-logs-user: ## Show logs from user service only
 
 docker-logs-gateway: ## Show logs from api gateway only
 	docker compose logs -f api-gateway
+
+docker-logs-template: ## Show logs from template service only
+	docker compose logs -f template-service
 
 docker-logs-email: ## Show logs from email service only
 	docker compose logs -f email-service

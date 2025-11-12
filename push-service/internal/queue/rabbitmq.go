@@ -240,16 +240,16 @@ func (r *RabbitMQ) Consume(ctx context.Context, handler MessageHandler) error {
 						logger.Merge(logDetails, logger.WithError(err)),
 					)
 
-					// handle rate limit errors and send to failed queue without retry
+					// log rate limit errors
 					if errors.Is(err, models.ErrRateLimitExceeded) {
-						r.PublishFailed(ctx, &notification, err.Error())
-						msg.Ack(false)
+
 						logger.Warn("Rate limited message sent to failed queue", logDetails)
-						continue
+
 					}
 
 					// sends the message to failed queue, retry logic has been handled in the service layer
 					r.PublishFailed(ctx, &notification, err.Error())
+
 					msg.Ack(false)
 
 					logger.Warn("Message failed after retries, sent to failed queue", logDetails)

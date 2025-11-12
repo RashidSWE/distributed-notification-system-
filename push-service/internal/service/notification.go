@@ -49,6 +49,9 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 	)
 	if err := s.checkRateLimit(ctx, msg.UserID); err != nil {
 		logger.Warn("Rate limit exceeded", loggerDetails)
+
+		// publish failed status for rate limit
+		s.publishStatus(ctx, msg, nil, models.NotificationStatusFailed, "Rate limit exceeded", 0, 0)
 		return err
 	}
 
@@ -56,7 +59,8 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 		logger.Error("Invalid notification message",
 			logger.Merge(loggerDetails, logger.WithError(err)),
 		)
-
+		// publish failed status for validation errors
+		s.publishStatus(ctx, msg, nil, models.NotificationStatusFailed, fmt.Sprintf("Validation failed: %s", err.Error()), 0, 0)
 		return err
 	}
 
@@ -76,7 +80,8 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 			logger.WithError(
 				err,
 			)))
-
+		// publish failed status for preparation errors
+		s.publishStatus(ctx, msg, nil, models.NotificationStatusFailed, fmt.Sprintf("Failed to prepare notification: %s", err.Error()), 0, 0)
 		return err
 	}
 
@@ -87,8 +92,12 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 				err,
 			)))
 
+		if results == nil {
+			results = make([]*models.NotificationResult, 0)
+		}
+
 		// publish failed status
-		s.publishStatus(ctx, msg, results, models.NotificationStatusFailed, err.Error())
+		s.publishStatus(ctx, msg, results, models.NotificationStatusFailed, err.Error(), 0, len(results))
 		return err
 	}
 
@@ -120,7 +129,7 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 	}
 
 	// publish status to status queue
-	s.publishStatus(ctx, msg, results, finalStatus, statusMessage)
+	s.publishStatus(ctx, msg, results, finalStatus, statusMessage, successCount, failedCount)
 
 	// mark as processed for idempotency
 	s.markAsProcessed(ctx, msg.ID)
@@ -262,18 +271,7 @@ func (s *NotificationService) checkRateLimit(ctx context.Context, userID string)
 }
 
 // publishes notification status to the status queue
-func (s *NotificationService) publishStatus(ctx context.Context, msg *models.NotificationMessage, results []*models.NotificationResult, status models.NotificationStatusEnum, message string) {
-	successCount := 0
-	failedCount := 0
-
-	for _, result := range results {
-		if result.Success {
-			successCount++
-		} else {
-			failedCount++
-		}
-	}
-
+func (s *NotificationService) publishStatus(ctx context.Context, msg *models.NotificationMessage, results []*models.NotificationResult, status models.NotificationStatusEnum, message string, successCount, failedCount int) {
 	statusMsg := &models.NotificationStatusMessage{
 		RequestID:      msg.RequestID,
 		NotificationID: msg.ID,
