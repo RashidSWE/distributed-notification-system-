@@ -193,7 +193,7 @@ func (r *RabbitMQ) Consume(ctx context.Context, handler MessageHandler) error {
 
 				var notification models.NotificationMessage
 				if err := json.Unmarshal(msg.Body, &notification); err != nil {
-					logger.Error("Failed to unmarshal message", logger.WithError(err))
+					logger.Error("Failed to unmarshal message", logger.Merge(logger.WithError(err), logger.Fields{"message": msg.Body}))
 
 					// reject and don't requeue invalid messages
 					msg.Nack(false, false)
