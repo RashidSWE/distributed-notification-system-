@@ -58,23 +58,8 @@ build: ## Build the application binary
 
 DOCKER_COMPOSE := docker compose -f ../docker-compose.yml
 
-docker-build: ## Build Docker image for push-service
-	@echo "🐳 Building Docker image..."
-	docker build -t push-service:latest .
 
-docker-run-standalone: ## Run push-service as standalone container (requires external dependencies)
-	@echo "🐳 Running push-service container..."
-	docker run --env-file .env -p 8081:8081 --name push-service push-service:latest
-
-docker-up: ## Start all services with docker-compose (PostgreSQL, Redis, RabbitMQ, API Gateway, User Service, Push Service)
-	@echo "🐳 Starting all services with docker-compose..."
-	cd .. && docker compose up -d
-
-docker-up-deps: ## Start only dependencies (PostgreSQL, Redis, RabbitMQ)
-	@echo "🐳 Starting dependencies..."
-	cd .. && docker compose up -d postgres redis rabbitmq
-
-docker-up-push: ## Start push-service with dependencies
+docker-up: ## Start push-service with dependencies
 	@echo "🐳 Starting push-service with dependencies..."
 	cd .. && docker compose up -d postgres redis rabbitmq push-service
 
@@ -82,10 +67,8 @@ docker-down: ## Stop all services
 	@echo "🛑 Stopping all services..."
 	cd .. && docker compose down
 
-docker-logs: ## Show logs from all services
-	cd .. && docker compose logs -f
 
-docker-logs-push: ## Show logs from push-service only
+docker-logs: ## Show logs from push-service only
 	cd .. && docker compose logs -f push-service
 
 docker-restart: ## Restart push-service
@@ -96,14 +79,9 @@ docker-rebuild: ## Rebuild and restart push-service
 	@echo "🔨 Rebuilding push-service..."
 	cd .. && docker compose up -d --build push-service
 
-docker-stop-push: ## Stop only push-service
+docker-stop: ## Stop only push-service
 	@echo "🛑 Stopping push-service..."
 	cd .. && docker compose stop push-service
-
-docker-clean: ## Remove all containers, volumes, and images
-	@echo "🧹 Cleaning up Docker resources..."
-	cd .. && docker compose down -v
-	docker rmi push-service:latest 2>/dev/null || true
 
 docker-ps: ## Show running containers
 	cd .. && docker compose ps

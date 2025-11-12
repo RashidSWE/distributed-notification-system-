@@ -107,6 +107,20 @@ type NotificationStatusResponse struct {
 	RequestID     string                 `json:"request_id,omitempty"`
 }
 
+// status queue message
+type NotificationStatusMessage struct {
+	RequestID      string                 `json:"request_id"`
+	NotificationID string                 `json:"notification_id"`
+	UserID         string                 `json:"user_id"`
+	Status         NotificationStatusEnum `json:"status"` // delivered or failed
+	Message        string                 `json:"message"`
+	SentCount      int                    `json:"sent_count"`
+	FailedCount    int                    `json:"failed_count"`
+	Results        []*NotificationResult  `json:"results,omitempty"`
+	Timestamp      time.Time              `json:"timestamp"`
+	CorrelationID  string                 `json:"correlation_id,omitempty"`
+}
+
 // validates notification message
 func (n *NotificationMessage) Validate() error {
 	if n.ID == "" {
