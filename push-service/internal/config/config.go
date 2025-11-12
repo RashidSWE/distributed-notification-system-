@@ -8,10 +8,10 @@ import (
 
 // app configuration
 type Config struct {
-	Server    ServerConfig
-	RabbitMQ  RabbitMQConfig
-	Redis     RedisConfig
-	Postgres  PostgresConfig
+	Server   ServerConfig
+	RabbitMQ RabbitMQConfig
+	Redis    RedisConfig
+
 	FCM       FCMConfig
 	Circuit   CircuitBreakerConfig
 	Retry     RetryConfig
@@ -33,6 +33,7 @@ type RabbitMQConfig struct {
 	Exchange      string
 	PushQueue     string
 	FailedQueue   string
+	StatusQueue   string
 	PrefetchCount int
 }
 
@@ -42,16 +43,6 @@ type RedisConfig struct {
 	Port     int
 	Password string
 	DB       int
-}
-
-// PostgreSQL connection settings
-type PostgresConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Database string
-	SSLMode  string
 }
 
 // Firebase Cloud Messaging configuration
@@ -97,6 +88,7 @@ func Load() *Config {
 			Exchange:      getEnv("RABBITMQ_EXCHANGE"),
 			PushQueue:     getEnv("RABBITMQ_PUSH_QUEUE"),
 			FailedQueue:   getEnv("RABBITMQ_FAILED_QUEUE"),
+			StatusQueue:   getEnv("RABBITMQ_STATUS_QUEUE"),
 			PrefetchCount: getEnvAsInt("RABBITMQ_PREFETCH_COUNT"),
 		},
 		Redis: RedisConfig{
@@ -104,14 +96,6 @@ func Load() *Config {
 			Port:     getEnvAsInt("REDIS_PORT"),
 			Password: "", // getEnv("REDIS_PASSWORD"),
 			DB:       getEnvAsInt("REDIS_DB"),
-		},
-		Postgres: PostgresConfig{
-			Host:     getEnv("POSTGRES_HOST"),
-			Port:     getEnvAsInt("POSTGRES_PORT"),
-			User:     getEnv("POSTGRES_USER"),
-			Password: getEnv("POSTGRES_PASSWORD"),
-			Database: getEnv("POSTGRES_DB"),
-			SSLMode:  getEnv("POSTGRES_SSLMODE"),
 		},
 		FCM: FCMConfig{
 			ProjectID:       getEnv("FCM_PROJECT_ID"),
@@ -137,18 +121,6 @@ func Load() *Config {
 	}
 
 	return config
-}
-
-func (c *Config) GetPostgresDSN() string {
-	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Postgres.Host,
-		c.Postgres.Port,
-		c.Postgres.User,
-		c.Postgres.Password,
-		c.Postgres.Database,
-		c.Postgres.SSLMode,
-	)
 }
 
 func (c *Config) GetRabbitMQURL() string {

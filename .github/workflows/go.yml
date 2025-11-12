@@ -3,10 +3,10 @@ name: Go Tests Runner
 on:
   push:
     branches:
-      - main
+      - feature/push-service
   pull_request:
     branches:
-      - main
+      - feature/push-service
 
 
 jobs:
