@@ -4,17 +4,23 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json first for caching
+# Copy package files first (for layer caching)
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the app
+# Copy application source code
 COPY . .
 
-# Expose app port
+# Generate Prisma client
+RUN npx prisma generate
+
+# Expose the Fastify port
 EXPOSE 5000
 
-# Default command for local testing (uses tsx to run TypeScript directly)
-CMD ["npm", "run", "dev"]
+# Start script:
+# 1️⃣ Wait for the database to be ready (optional, if you're using docker-compose depends_on it’s handled)
+# 2️⃣ Run Prisma migrations
+# 3️⃣ Start the dev server
+CMD sh -c "npx prisma migrate deploy && npm run dev"
