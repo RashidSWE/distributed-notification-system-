@@ -1,17 +1,22 @@
-version: "3.9"
+
 
 services:
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "${RABBITMQ_PORT}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - notification_net
 
@@ -20,6 +25,31 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+    command: redis-server --requirepass ""
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - notification_net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: pushuser
+      POSTGRES_PASSWORD: pushpass
+      POSTGRES_DB: pushdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pushuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - notification_net
 
@@ -49,8 +79,57 @@ services:
     networks:
       - notification_net
 
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+    networks:
+      - notification_net
+
+  push-service:
+    build: ./push-service
+    container_name: push-service
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./push-service/.env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=pushuser
+      - POSTGRES_PASSWORD=pushpass
+      - POSTGRES_DB=pushdb
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - notification_net
+
+
 volumes:
   rabbitmq_data:
+  postgres_data:
 
 networks:
   notification_net:
