@@ -9,7 +9,6 @@ import (
 
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
-	"github.com/zjoart/distributed-notification-system/push-service/internal/database"
 	handler "github.com/zjoart/distributed-notification-system/push-service/internal/handlers"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/queue"
@@ -28,15 +27,6 @@ func main() {
 
 	cfg := config.Load()
 
-	db, err := database.LoadPostgres(cfg.GetPostgresDSN())
-
-	if err != nil {
-		logger.Fatal("Failed to connect to database", logger.WithError(err))
-	}
-
-	defer db.Close()
-	logger.Info("Database connected successfully")
-
 	redisCache, err := cache.NewRedisCache(cfg.GetRedisAddr(), cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
 		logger.Fatal("Failed to connect to Redis", logger.WithError(err))
@@ -50,6 +40,7 @@ func main() {
 		cfg.RabbitMQ.Exchange,
 		cfg.RabbitMQ.PushQueue,
 		cfg.RabbitMQ.FailedQueue,
+		cfg.RabbitMQ.StatusQueue,
 		cfg.RabbitMQ.PrefetchCount,
 	)
 	if err != nil {
@@ -94,9 +85,10 @@ func main() {
 		retryService,
 		redisCache,
 		cfg.RateLimit,
+		rabbitMQ,
 	)
 
-	healthHandler := handler.NewHealthHandler(db, rabbitMQ, redisCache)
+	healthHandler := handler.NewHealthHandler(rabbitMQ, redisCache)
 	notificationHandler := handler.NewNotificationHandler(notificationService, rabbitMQ)
 
 	httpServer := server.NewServer(

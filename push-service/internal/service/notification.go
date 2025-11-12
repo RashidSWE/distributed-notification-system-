@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
@@ -16,6 +17,11 @@ type NotificationService struct {
 	retryService *RetryService
 	cache        *cache.RedisCache
 	rateLimit    config.RateLimitConfig
+	queue        QueuePublisher
+}
+
+type QueuePublisher interface {
+	PublishStatus(ctx context.Context, statusMsg *models.NotificationStatusMessage) error
 }
 
 func NewNotificationService(
@@ -23,12 +29,14 @@ func NewNotificationService(
 	retryService *RetryService,
 	cache *cache.RedisCache,
 	rateLimit config.RateLimitConfig,
+	queue QueuePublisher,
 ) *NotificationService {
 	return &NotificationService{
 		fcmService:   fcmService,
 		retryService: retryService,
 		cache:        cache,
 		rateLimit:    rateLimit,
+		queue:        queue,
 	}
 }
 
@@ -78,6 +86,9 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 			logger.WithError(
 				err,
 			)))
+
+		// publish failed status
+		s.publishStatus(ctx, msg, results, models.NotificationStatusFailed, err.Error())
 		return err
 	}
 
@@ -97,6 +108,19 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 			"failed_count":  failedCount,
 			"total":         len(results),
 		}))
+
+	// determine final status
+	finalStatus := models.NotificationStatusDelivered
+	statusMessage := "Notification delivered successfully"
+	if successCount == 0 {
+		finalStatus = models.NotificationStatusFailed
+		statusMessage = "All notifications failed to deliver"
+	} else if failedCount > 0 {
+		statusMessage = fmt.Sprintf("Partially delivered: %d succeeded, %d failed", successCount, failedCount)
+	}
+
+	// publish status to status queue
+	s.publishStatus(ctx, msg, results, finalStatus, statusMessage)
 
 	// mark as processed for idempotency
 	s.markAsProcessed(ctx, msg.ID)
@@ -235,6 +259,42 @@ func (s *NotificationService) checkRateLimit(ctx context.Context, userID string)
 	}
 
 	return nil
+}
+
+// publishes notification status to the status queue
+func (s *NotificationService) publishStatus(ctx context.Context, msg *models.NotificationMessage, results []*models.NotificationResult, status models.NotificationStatusEnum, message string) {
+	successCount := 0
+	failedCount := 0
+
+	for _, result := range results {
+		if result.Success {
+			successCount++
+		} else {
+			failedCount++
+		}
+	}
+
+	statusMsg := &models.NotificationStatusMessage{
+		RequestID:      msg.RequestID,
+		NotificationID: msg.ID,
+		UserID:         msg.UserID,
+		Status:         status,
+		Message:        message,
+		SentCount:      successCount,
+		FailedCount:    failedCount,
+		Results:        results,
+		Timestamp:      time.Now(),
+		CorrelationID:  msg.CorrelationID,
+	}
+
+	if err := s.queue.PublishStatus(ctx, statusMsg); err != nil {
+		logger.Error("Failed to publish status to queue",
+			logger.Merge(
+				logger.WithNotificationID(msg.ID),
+				logger.WithUserID(msg.UserID),
+				logger.WithError(err),
+			))
+	}
 }
 
 // validates device tokens(for testing purposes)

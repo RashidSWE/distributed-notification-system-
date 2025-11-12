@@ -21,6 +21,7 @@ type RabbitMQ struct {
 	exchange       string
 	pushQueue      string
 	failedQueue    string
+	statusQueue    string
 	prefetchCount  int
 	reconnectMutex sync.Mutex
 	isConnected    bool
@@ -29,7 +30,7 @@ type RabbitMQ struct {
 
 type MessageHandler func(ctx context.Context, msg *models.NotificationMessage) error
 
-func NewRabbitMQ(url, exchange, pushQueue, failedQueue string, prefetchCount int) (*RabbitMQ, error) {
+func NewRabbitMQ(url, exchange, pushQueue, failedQueue, statusQueue string, prefetchCount int) (*RabbitMQ, error) {
 	logger.Info("initializing rabbitmq connection")
 
 	rmq := &RabbitMQ{
@@ -37,6 +38,7 @@ func NewRabbitMQ(url, exchange, pushQueue, failedQueue string, prefetchCount int
 		exchange:      exchange,
 		pushQueue:     pushQueue,
 		failedQueue:   failedQueue,
+		statusQueue:   statusQueue,
 		prefetchCount: prefetchCount,
 		isConnected:   false,
 	}
@@ -80,6 +82,7 @@ func (r *RabbitMQ) connect() error {
 		return fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
+	// declare and bind push queue
 	if _, err := r.channel.QueueDeclare(
 		r.pushQueue,
 		true,
@@ -101,6 +104,7 @@ func (r *RabbitMQ) connect() error {
 		return fmt.Errorf("failed to bind push queue: %w", err)
 	}
 
+	// declare and bind failed queue
 	if _, err := r.channel.QueueDeclare(
 		r.failedQueue,
 		true,
@@ -122,12 +126,35 @@ func (r *RabbitMQ) connect() error {
 		return fmt.Errorf("failed to bind failed queue: %w", err)
 	}
 
+	// declare and bind status queue
+	if _, err := r.channel.QueueDeclare(
+		r.statusQueue,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	); err != nil {
+		return fmt.Errorf("failed to declare status queue: %w", err)
+	}
+
+	if err := r.channel.QueueBind(
+		r.statusQueue,
+		r.statusQueue,
+		r.exchange,
+		false,
+		nil,
+	); err != nil {
+		return fmt.Errorf("failed to bind status queue: %w", err)
+	}
+
 	r.isConnected = true
 
 	logger.Info("Connected to RabbitMQ successfully", logger.Fields{
 		"exchange":     r.exchange,
 		"push_queue":   r.pushQueue,
 		"failed_queue": r.failedQueue,
+		"status_queue": r.statusQueue,
 	})
 
 	go r.handleReconnection()
@@ -285,6 +312,21 @@ func (r *RabbitMQ) PublishFailed(ctx context.Context, notification *models.Notif
 	logger.Warn("Publishing message to dead letter queue", logDetails)
 
 	return r.Publish(ctx, r.failedQueue, failedMsg)
+}
+
+func (r *RabbitMQ) PublishStatus(ctx context.Context, statusMsg *models.NotificationStatusMessage) error {
+	logDetails := logger.Merge(
+		logger.Fields{
+			"status":     statusMsg.Status,
+			"request_id": statusMsg.RequestID,
+		},
+		logger.WithNotificationID(statusMsg.NotificationID),
+		logger.WithUserID(statusMsg.UserID),
+	)
+
+	logger.Info("Publishing notification status to status queue", logDetails)
+
+	return r.Publish(ctx, r.statusQueue, statusMsg)
 }
 
 func (r *RabbitMQ) Health() error {
