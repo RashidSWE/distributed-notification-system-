@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, status
 from fastapi.responses import JSONResponse
 
 from .config import Settings, get_settings
-from .schemas import HealthResponse, RenderRequest, RenderResponse
+from .schemas import HealthResponse, PushTemplateResponse, RenderRequest, RenderResponse
 from .services.template_service import (
     TemplateError,
     TemplateFormatUnsupportedError,
@@ -53,3 +53,11 @@ async def render_template(
         subject=subject,
         content=content,
     )
+
+
+@app.get("/templates/push/{template_code}", response_model=PushTemplateResponse)
+async def get_push_template(
+    template_code: str,
+    service: TemplateService = Depends(get_template_service),
+) -> PushTemplateResponse:
+    return service.get_push_template(template_code)
