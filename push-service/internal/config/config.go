@@ -8,13 +8,14 @@ import (
 
 // app configuration
 type Config struct {
-	Server   ServerConfig
-	RabbitMQ RabbitMQConfig
-	Redis    RedisConfig
-	Postgres PostgresConfig
-	FCM      FCMConfig
-	Circuit  CircuitBreakerConfig
-	Retry    RetryConfig
+	Server    ServerConfig
+	RabbitMQ  RabbitMQConfig
+	Redis     RedisConfig
+	Postgres  PostgresConfig
+	FCM       FCMConfig
+	Circuit   CircuitBreakerConfig
+	Retry     RetryConfig
+	RateLimit RateLimitConfig
 }
 
 // server configuration
@@ -76,6 +77,12 @@ type RetryConfig struct {
 	Multiplier      float64
 }
 
+// rate limiting configuration
+type RateLimitConfig struct {
+	Requests int // max requests per window
+	Window   int // window duration in seconds
+}
+
 func Load() *Config {
 	config := &Config{
 		Server: ServerConfig{
@@ -95,7 +102,7 @@ func Load() *Config {
 		Redis: RedisConfig{
 			Host:     getEnv("REDIS_HOST"),
 			Port:     getEnvAsInt("REDIS_PORT"),
-			Password: getEnv("REDIS_PASSWORD"),
+			Password: "", // getEnv("REDIS_PASSWORD"),
 			DB:       getEnvAsInt("REDIS_DB"),
 		},
 		Postgres: PostgresConfig{
@@ -122,6 +129,10 @@ func Load() *Config {
 			InitialInterval: getEnvAsInt("RETRY_INITIAL_INTERVAL"),
 			MaxInterval:     getEnvAsInt("RETRY_MAX_INTERVAL"),
 			Multiplier:      getEnvAsFloat("RETRY_MULTIPLIER"),
+		},
+		RateLimit: RateLimitConfig{
+			Requests: getEnvAsInt("RATE_LIMIT_REQUESTS"),
+			Window:   getEnvAsInt("RATE_LIMIT_WINDOW"),
 		},
 	}
 

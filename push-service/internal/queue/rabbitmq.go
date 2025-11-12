@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -192,9 +193,7 @@ func (r *RabbitMQ) Consume(ctx context.Context, handler MessageHandler) error {
 
 				var notification models.NotificationMessage
 				if err := json.Unmarshal(msg.Body, &notification); err != nil {
-					logger.Error("Failed to unmarshal message", logger.Fields{
-						"error": err.Error(),
-					})
+					logger.Error("Failed to unmarshal message", logger.WithError(err))
 
 					// reject and don't requeue invalid messages
 					msg.Nack(false, false)
@@ -203,31 +202,30 @@ func (r *RabbitMQ) Consume(ctx context.Context, handler MessageHandler) error {
 
 				logDetails := logger.Merge(
 					logger.WithUserID(notification.UserID),
-					logger.WithError(err),
 					logger.WithNotificationID(notification.ID),
 				)
 
-				logger.Info("Received notification message", logger.Merge(
-					logDetails,
-					logger.Fields{
-						"attempt_count": notification.AttemptCount,
-					}))
+				logger.Info("Received notification message", logDetails)
 
 				// process message
 				if err := handler(ctx, &notification); err != nil {
 					logger.Error("Failed to process message",
-						logDetails,
+						logger.Merge(logDetails, logger.WithError(err)),
 					)
 
-					// decide whether to requeue or send to dead-letter queue
-					if notification.ShouldRetry(3) {
-						// requeue for retry
-						msg.Nack(false, true)
-					} else {
-						// send to dead-letter queue
+					// handle rate limit errors and send to failed queue without retry
+					if errors.Is(err, models.ErrRateLimitExceeded) {
 						r.PublishFailed(ctx, &notification, err.Error())
 						msg.Ack(false)
+						logger.Warn("Rate limited message sent to failed queue", logDetails)
+						continue
 					}
+
+					// sends the message to failed queue, retry logic has been handled in the service layer
+					r.PublishFailed(ctx, &notification, err.Error())
+					msg.Ack(false)
+
+					logger.Warn("Message failed after retries, sent to failed queue", logDetails)
 				} else {
 
 					msg.Ack(false)
@@ -273,20 +271,18 @@ func (r *RabbitMQ) PublishFailed(ctx context.Context, notification *models.Notif
 	failedMsg := models.FailedMessage{
 		OriginalMessage: *notification,
 		Reason:          reason,
-		AttemptCount:    notification.AttemptCount,
 		FailedAt:        time.Now(),
 		LastError:       reason,
 	}
 
 	logDetails := logger.Merge(
 		logger.Fields{
-			"reason":        reason,
-			"attempt_count": notification.AttemptCount,
+			"reason": reason,
 		},
 		logger.WithNotificationID(notification.ID),
 	)
 
-	logger.Warn("Publishing message to dead-letter queue", logDetails)
+	logger.Warn("Publishing message to dead letter queue", logDetails)
 
 	return r.Publish(ctx, r.failedQueue, failedMsg)
 }

@@ -14,8 +14,14 @@ const (
 // create a push notification request
 type CreateNotificationRequest struct {
 	UserID       string                 `json:"user_id"`
-	TemplateCode string                 `json:"template_code"`
-	Variables    UserData               `json:"variables"`
+	DeviceTokens []string               `json:"device_tokens"`
+	Platform     string                 `json:"platform,omitempty"` // "ios", "android", "web"
+	Title        string                 `json:"title,omitempty"`
+	Body         string                 `json:"body,omitempty"`
+	ImageURL     string                 `json:"image_url,omitempty"`
+	Link         string                 `json:"link,omitempty"`
+	TemplateCode string                 `json:"template_code,omitempty"`
+	Variables    UserData               `json:"variables,omitempty"`
 	RequestID    string                 `json:"request_id"`
 	Priority     int                    `json:"priority"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
@@ -52,7 +58,6 @@ type NotificationMessage struct {
 	Variables     map[string]string      `json:"variables,omitempty"`
 	Language      string                 `json:"language,omitempty"`
 	Priority      string                 `json:"priority,omitempty"` // "high", "normal"
-	AttemptCount  int                    `json:"attempt_count"`
 	CorrelationID string                 `json:"correlation_id,omitempty"`
 	RequestID     string                 `json:"request_id,omitempty"`
 	ScheduledAt   *time.Time             `json:"scheduled_at,omitempty"`
@@ -81,7 +86,6 @@ type NotificationResult struct {
 type FailedMessage struct {
 	OriginalMessage NotificationMessage `json:"original_message"`
 	Reason          string              `json:"reason"`
-	AttemptCount    int                 `json:"attempt_count"`
 	FailedAt        time.Time           `json:"failed_at"`
 	LastError       string              `json:"last_error"`
 }
@@ -118,14 +122,4 @@ func (n *NotificationMessage) Validate() error {
 		return ErrEmptyNotificationContent
 	}
 	return nil
-}
-
-// increments the attempt count
-func (n *NotificationMessage) IncrementAttempt() {
-	n.AttemptCount++
-}
-
-// determine if the notification should be retried
-func (n *NotificationMessage) ShouldRetry(maxAttempts int) bool {
-	return n.AttemptCount < maxAttempts
 }

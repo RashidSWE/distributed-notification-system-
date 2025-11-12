@@ -5,7 +5,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/zjoart/distributed-notification-system/push-service/internal/models"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 )
 
@@ -42,21 +41,11 @@ func (r *RetryService) CalculateBackoff(attemptCount int) time.Duration {
 	return time.Duration(backoff)
 }
 
-// determines if a notification should be retried
-func (r *RetryService) ShouldRetry(notification *models.NotificationMessage) bool {
-	return notification.AttemptCount < r.maxAttempts
-}
-
 // retries a function with exponential backoff
-func (r *RetryService) RetryWithBackoff(ctx context.Context, attemptCount int, fn func() error) error {
-	if attemptCount >= r.maxAttempts {
-		return models.ErrMaxRetriesExceeded
-	}
-
+func (r *RetryService) RetryWithBackoff(ctx context.Context, fn func() error) error {
 	var lastErr error
 
-	for attempt := attemptCount; attempt < r.maxAttempts; attempt++ {
-
+	for attempt := 0; attempt < r.maxAttempts; attempt++ {
 		// execute
 		err := fn()
 		if err == nil {
@@ -86,9 +75,4 @@ func (r *RetryService) RetryWithBackoff(ctx context.Context, attemptCount int, f
 	}
 
 	return lastErr
-}
-
-// returns the maximum number of retry attempts
-func (r *RetryService) GetMaxAttempts() int {
-	return r.maxAttempts
 }

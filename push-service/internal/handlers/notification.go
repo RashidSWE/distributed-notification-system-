@@ -53,12 +53,17 @@ func (h *NotificationHandler) CreateNotification(w http.ResponseWriter, r *http.
 	message := &models.NotificationMessage{
 		ID:           req.RequestID,
 		UserID:       req.UserID,
+		DeviceTokens: req.DeviceTokens,
+		Platform:     req.Platform,
+		Title:        req.Title,
+		Body:         req.Body,
+		ImageURL:     req.ImageURL,
+		Link:         req.Link,
 		TemplateCode: req.TemplateCode,
 		Variables:    variables,
 		Priority:     priorityToString(req.Priority),
 		RequestID:    req.RequestID,
 		Data:         req.Metadata,
-		AttemptCount: 0,
 		CreatedAt:    time.Now(),
 	}
 

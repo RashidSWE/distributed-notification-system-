@@ -24,6 +24,7 @@ var (
 	ErrMaxRetriesExceeded    = errors.New("max retry attempts exceeded")
 	ErrFCMServiceUnavailable = errors.New("FCM service unavailable")
 	ErrInvalidFCMResponse    = errors.New("invalid FCM response")
+	ErrRateLimitExceeded     = errors.New("rate limit exceeded")
 
 	// Database errors
 	ErrDatabaseConnection = errors.New("database connection error")

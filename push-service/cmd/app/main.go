@@ -99,6 +99,7 @@ func main() {
 		fcmService,
 		retryService,
 		redisCache,
+		cfg.RateLimit,
 	)
 
 	healthHandler := handler.NewHealthHandler(db, rabbitMQ, redisCache)

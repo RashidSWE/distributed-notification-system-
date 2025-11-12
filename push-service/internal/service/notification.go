@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/models"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
@@ -14,17 +15,20 @@ type NotificationService struct {
 	fcmService   *push.FCMService
 	retryService *RetryService
 	cache        *cache.RedisCache
+	rateLimit    config.RateLimitConfig
 }
 
 func NewNotificationService(
 	fcmService *push.FCMService,
 	retryService *RetryService,
 	cache *cache.RedisCache,
+	rateLimit config.RateLimitConfig,
 ) *NotificationService {
 	return &NotificationService{
 		fcmService:   fcmService,
 		retryService: retryService,
 		cache:        cache,
+		rateLimit:    rateLimit,
 	}
 }
 
@@ -55,8 +59,7 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 	}
 
 	logger.Info("Processing notification", logger.Merge(loggerDetails, logger.Fields{
-		"device_count":  len(msg.DeviceTokens),
-		"attempt_count": msg.AttemptCount,
+		"device_count": len(msg.DeviceTokens),
 	}))
 
 	notification, err := s.prepareNotification(msg)
@@ -131,7 +134,7 @@ func (s *NotificationService) sendNotification(ctx context.Context, msg *models.
 
 	var results []*models.NotificationResult
 
-	err := s.retryService.RetryWithBackoff(ctx, msg.AttemptCount, func() error {
+	err := s.retryService.RetryWithBackoff(ctx, func() error {
 		var err error
 
 		if len(validTokens) == 1 {
@@ -171,9 +174,6 @@ func (s *NotificationService) sendNotification(ctx context.Context, msg *models.
 
 		return nil
 	})
-
-	// Increment attempt count
-	msg.IncrementAttempt()
 
 	return results, err
 }
@@ -219,8 +219,8 @@ func (s *NotificationService) markAsProcessed(ctx context.Context, notificationI
 func (s *NotificationService) checkRateLimit(ctx context.Context, userID string) error {
 	key := cache.GetRateLimitKey(userID)
 
-	// allow 100 notifications per minute per user
-	allowed, err := s.cache.CheckRateLimit(ctx, key, 100, 60)
+	// use configured rate limit values
+	allowed, err := s.cache.CheckRateLimit(ctx, key, int64(s.rateLimit.Requests), s.rateLimit.Window)
 	if err != nil {
 		logger.Error("Failed to check rate limit", logger.Merge(
 			logger.WithUserID(userID),
@@ -231,7 +231,7 @@ func (s *NotificationService) checkRateLimit(ctx context.Context, userID string)
 	}
 
 	if !allowed {
-		return fmt.Errorf("rate limit exceeded for user %s", userID)
+		return models.ErrRateLimitExceeded
 	}
 
 	return nil
