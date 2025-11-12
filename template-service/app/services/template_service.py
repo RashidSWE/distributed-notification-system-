@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Literal
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 from ..config import Settings
-from ..schemas import RenderRequest, TemplateKey
+from ..schemas import PushTemplateResponse, RenderRequest, TemplateKey
 
 
 class TemplateError(RuntimeError):
@@ -30,6 +30,24 @@ class TemplateDefinition:
     files: dict[Literal["html", "text"], str]
 
 
+@dataclass(frozen=True)
+class PushTemplateDefinition:
+    code: str
+    name: str
+    description: str
+    category: str
+    type: str
+    title: str
+    body: str
+    image_url: str | None = None
+    icon_url: str | None = None
+    data: dict[str, str] = field(default_factory=dict)
+    color: str | None = None
+    sound: str | None = None
+    badge: int | None = None
+    priority: int | None = None
+
+
 TEMPLATE_REGISTRY: dict[TemplateKey, TemplateDefinition] = {
     TemplateKey.WELCOME_EMAIL: TemplateDefinition(
         key=TemplateKey.WELCOME_EMAIL,
@@ -46,6 +64,56 @@ TEMPLATE_REGISTRY: dict[TemplateKey, TemplateDefinition] = {
             "html": "password_reset.html",
             "text": "password_reset.txt",
         },
+    ),
+}
+
+
+PUSH_TEMPLATE_REGISTRY: dict[str, PushTemplateDefinition] = {
+    "PASSWORD_RESET_CODE": PushTemplateDefinition(
+        code="PASSWORD_RESET_CODE",
+        name="Password Reset Verification Code",
+        description="Push notification guiding the user through password recovery.",
+        category="security",
+        type="push",
+        title="Verify your password reset",
+        body="Use code {{reset_code}} to finish resetting your password. It expires at {{expires_at}}.",
+        image_url=None,
+        icon_url=None,
+        data={
+            "type": "security_alert",
+            "alert_type": "reset_code",
+            "reset_code": "{{reset_code}}",
+            "expires_at": "{{expires_at}}",
+            "request_time": "{{request_time}}",
+            "action_type": "deeplink",
+            "action_url": "myapp://reset-password",
+        },
+        color="#FF5722",
+        sound="notification.mp3",
+        badge=1,
+        priority=10,
+    ),
+    "WELCOME_EMAIL": PushTemplateDefinition(
+        code="WELCOME_EMAIL",
+        name="Welcome Notification",
+        description="Greets new users right after signup.",
+        category="engagement",
+        type="push",
+        title="Welcome to {{product_name | default('Notifications Hub')}}",
+        body="Hey {{user_name | default('there')}}, tap to explore your new workspace.",
+        image_url=None,
+        icon_url=None,
+        data={
+            "type": "onboarding",
+            "alert_type": "welcome",
+            "request_time": "{{request_time}}",
+            "action_type": "deeplink",
+            "action_url": "myapp://home",
+        },
+        color="#2E7D32",
+        sound="notification.mp3",
+        badge=1,
+        priority=5,
     ),
 }
 
@@ -87,3 +155,9 @@ class TemplateService:
         content = template.render(**render_context)
         subject = self._subject_env.from_string(definition.subject_template).render(**render_context)
         return subject.strip(), content
+
+    def get_push_template(self, template_code: str) -> PushTemplateResponse:
+        definition = PUSH_TEMPLATE_REGISTRY.get(template_code)
+        if not definition:
+            raise TemplateNotRegisteredError(f"push template {template_code} is not registered.")
+        return PushTemplateResponse(**asdict(definition))

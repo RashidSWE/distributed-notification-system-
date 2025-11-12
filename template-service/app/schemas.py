@@ -23,5 +23,22 @@ class RenderResponse(BaseModel):
     content: str
 
 
+class PushTemplateResponse(BaseModel):
+    code: str
+    name: str
+    description: str | None = None
+    category: str | None = None
+    type: str | None = None
+    title: str | None = None
+    body: str | None = None
+    image_url: str | None = None
+    icon_url: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+    color: str | None = None
+    sound: str | None = None
+    badge: int | None = None
+    priority: int | None = None
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"]
