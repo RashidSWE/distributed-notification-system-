@@ -23,6 +23,19 @@ services:
     networks:
       - notification_net
 
+  template-service:
+    build: ./template-service
+    container_name: template-service
+    ports:
+      - "8200:8080"
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - redis
+    networks:
+      - notification_net
+
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
