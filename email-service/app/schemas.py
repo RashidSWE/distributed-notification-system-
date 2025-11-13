@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import Any, Literal
+
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, model_validator
 
 
@@ -48,35 +49,22 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
 
 
-class UserPreferences(BaseModel):
-    email: bool
-    push: bool
-
-
-class UserData(BaseModel):
-    name: str
-    link: HttpUrl
-    meta: Optional[dict[str, str]] = None
-
-
-class UserProfile(BaseModel):
-    name: str
-    email: str
-    push_token: str
-    preference: UserPreferences
-    password: str
-
-class EmailQueuePayload(BaseModel):
+class EmailQueueData(BaseModel):
+    notification_type: Literal["email"]
     user_id: str
     template_code: str
-    variables: UserData
     request_id: str
-    priority: int
-    metadata: Optional[dict[str, str]] = None
+    name: str
+    email: EmailStr
+    context: dict[str, Any] = Field(default_factory=dict)
 
-class QueueData(BaseModel):
-    message_id: str
-    payload: EmailQueuePayload
+
+class EmailQueueEnvelope(BaseModel):
+    success: bool
+    data: EmailQueueData
+    error: Any | None = None
+    message: str | None = None
+    meta: dict[str, Any] | None = None
 
 
 class TemplateKey(str, Enum):
