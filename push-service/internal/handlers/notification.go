@@ -42,7 +42,6 @@ func (h *NotificationHandler) CreateNotification(w http.ResponseWriter, r *http.
 
 	variables := map[string]string{
 		"name": req.Variables.Name,
-		"link": req.Variables.Link,
 	}
 	for key, val := range req.Variables.Meta {
 		if strVal, ok := val.(string); ok {
@@ -51,20 +50,16 @@ func (h *NotificationHandler) CreateNotification(w http.ResponseWriter, r *http.
 	}
 
 	message := &models.NotificationMessage{
-		ID:           req.RequestID,
-		UserID:       req.UserID,
-		DeviceTokens: req.DeviceTokens,
-		Platform:     req.Platform,
-		Title:        req.Title,
-		Body:         req.Body,
-		ImageURL:     req.ImageURL,
-		Link:         req.Link,
-		TemplateCode: req.TemplateCode,
-		Variables:    variables,
-		Priority:     priorityToString(req.Priority),
-		RequestID:    req.RequestID,
-		Data:         req.Metadata,
-		CreatedAt:    time.Now(),
+		ID:               req.RequestID,
+		NotificationType: "push",
+		UserID:           req.UserID,
+		TemplateCode:     req.TemplateCode,
+		DeviceTokens:     req.DeviceTokens,
+		Variables:        variables,
+		Platform:         req.Platform,
+		Priority:         priorityToString(req.Priority),
+		RequestID:        req.RequestID,
+		CreatedAt:        time.Now(),
 	}
 
 	// push message to queue

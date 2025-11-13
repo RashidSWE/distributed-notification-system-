@@ -1,6 +1,7 @@
 package template
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,11 +26,17 @@ type PushTemplate struct {
 	Body        string                 `json:"body,omitempty"`
 	ImageURL    string                 `json:"image_url,omitempty"`
 	IconURL     string                 `json:"icon_url,omitempty"`
+	Link        string                 `json:"link,omitempty"`
 	Data        map[string]interface{} `json:"data,omitempty"`
 	Color       string                 `json:"color,omitempty"`
 	Sound       string                 `json:"sound,omitempty"`
 	Badge       int                    `json:"badge,omitempty"`
 	Priority    int                    `json:"priority,omitempty"`
+}
+
+type RenderPushTemplateRequest struct {
+	TemplateCode string            `json:"template_code"`
+	Context      map[string]string `json:"context"`
 }
 
 func NewClient(baseURL string, timeout time.Duration) *Client {
@@ -41,26 +48,36 @@ func NewClient(baseURL string, timeout time.Duration) *Client {
 	}
 }
 
-func (c *Client) GetPushTemplate(ctx context.Context, templateCode string) (*PushTemplate, error) {
-	url := fmt.Sprintf("%s/templates/push/%s", c.baseURL, templateCode)
+func (c *Client) RenderPushTemplate(ctx context.Context, templateCode string, variables map[string]string) (*PushTemplate, error) {
+	url := fmt.Sprintf("%s/templates/push/render", c.baseURL)
 
 	logFields := logger.Fields{
 		"template_code": templateCode,
 		"url":           url,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	renderReq := RenderPushTemplateRequest{
+		TemplateCode: templateCode,
+		Context:      variables,
+	}
+
+	body, err := json.Marshal(renderReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	logger.Info("Fetching push template from template service", logFields)
+	logger.Info("Rendering push template from template service", logFields)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		logger.Error("Failed to fetch template from template service", logger.Merge(
+		logger.Error("Failed to render template from template service", logger.Merge(
 			logger.WithError(err),
 			logFields,
 		))
@@ -93,7 +110,7 @@ func (c *Client) GetPushTemplate(ctx context.Context, templateCode string) (*Pus
 		return nil, fmt.Errorf("failed to decode template: %w", err)
 	}
 
-	logger.Info("Successfully fetched template", logger.Merge(
+	logger.Info("Successfully rendered template", logger.Merge(
 		logFields,
 		logger.Fields{"template_name": template.Name},
 	))
