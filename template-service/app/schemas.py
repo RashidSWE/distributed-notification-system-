@@ -40,5 +40,10 @@ class PushTemplateResponse(BaseModel):
     priority: int | None = None
 
 
+class PushRenderRequest(BaseModel):
+    template_code: str
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"]
