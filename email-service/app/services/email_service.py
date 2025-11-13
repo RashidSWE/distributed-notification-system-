@@ -2,14 +2,16 @@ import asyncio
 import base64
 import binascii
 import uuid
+from datetime import datetime
 from typing import Iterable
 
 import httpx
+from loguru import logger
 
 from ..config import Settings
 from ..sender import EmailSender, ResolvedAttachment
-from ..schemas import Attachment, EmailRequest
-from loguru import logger
+from ..schemas import Attachment, DeliveryStatus, EmailRequest
+from ..status_publisher import StatusPublisher
 
 class EmailDeliveryError(RuntimeError):
     """Raised when the service cannot deliver an email."""
@@ -20,9 +22,11 @@ class EmailService:
         self,
         settings: Settings,
         email_sender: EmailSender | None = None,
+        status_publisher: StatusPublisher | None = None,
     ) -> None:
         self._settings = settings
         self._email_sender = email_sender or EmailSender(settings)
+        self._status_publisher = status_publisher
 
     async def send_email(self, payload: EmailRequest) -> str:
         if not payload.request_id:
@@ -40,6 +44,7 @@ class EmailService:
                     attachments=attachments,
                 )
                 logger.info(f"Email sent \n\nRequest_id: {request_id}\nAttempt: {attempt}")
+                await self._publish_status(payload, attempt, status="sent")
                 return request_id
             except Exception as exc:
                 last_error = exc
@@ -50,6 +55,7 @@ class EmailService:
         message = "Failed to send email after retries."
         if last_error:
             message = f"{message} Last error: {last_error}"
+        await self._publish_status(payload, retry_attempts, status="failed", error=str(last_error) if last_error else None, notify_failed=True)
         raise EmailDeliveryError(message)
 
     async def _resolve_attachments(
@@ -88,3 +94,39 @@ class EmailService:
             return base64.b64decode(data, validate=True)
         except (ValueError, binascii.Error) as exc:
             raise ValueError("Invalid base64 attachment payload.") from exc
+
+    async def _publish_status(
+        self,
+        payload: EmailRequest,
+        attempts: int,
+        *,
+        status: str,
+        error: str | None = None,
+        notify_failed: bool = False,
+    ) -> None:
+        if not self._status_publisher:
+            return
+        status_payload = DeliveryStatus(
+            request_id=payload.request_id or "",
+            status=status,  # type: ignore[arg-type]
+            recipients=self._collect_recipients(payload),
+            template_code=payload.template_code,
+            metadata=payload.metadata,
+            error=error,
+            attempts=attempts,
+            sent_at=datetime.utcnow(),
+        )
+        try:
+            await self._status_publisher.publish_status(status_payload)
+            if status == "failed" or notify_failed:
+                await self._status_publisher.publish_failed(status_payload)
+        except Exception as exc:  # pragma: no cover - publishing is best effort
+            logger.error(f"Failed to publish delivery status: {exc}")
+
+    @staticmethod
+    def _collect_recipients(payload: EmailRequest) -> list[str]:
+        recipients: list[str] = []
+        recipients.extend(payload.to)
+        recipients.extend(payload.cc)
+        recipients.extend(payload.bcc)
+        return recipients
