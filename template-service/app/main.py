@@ -61,7 +61,7 @@ async def render_template(
     )
 
 
-@app.get("/templates/push/{template_code}", response_model=PushTemplateResponse)
+@app.get("/templates/pull/{template_code}", response_model=PushTemplateResponse)
 async def get_push_template(
     template_code: str,
     service: TemplateService = Depends(get_template_service),

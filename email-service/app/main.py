@@ -6,9 +6,9 @@ from fastapi.responses import JSONResponse
 from .config import Settings, get_settings
 from .queue_consumer import EmailQueueConsumer
 from .schemas import EmailRequest, EmailResponse, HealthResponse
-from .services.email_queue_service import EmailQueueService
 from .services.email_service import EmailDeliveryError, EmailService
 from .status_publisher import StatusPublisher
+from .services.email_queue_service import EmailQueueService
 
 logging.basicConfig(level=logging.INFO)
 

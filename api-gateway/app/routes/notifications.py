@@ -20,14 +20,9 @@ async def create_notification(payload: NotificationRequest, current_user: dict =
         )
     
     payload.user_id = current_user["id"]
-    
-    # if not payload.user_id:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="User not authorized to send this notification"
-    #     )
-    
-    
+    email = current_user["email"]
+
+
     message_dict = payload.model_dump()
     success = await publish_message(payload.notification_type.value, message_dict)
 
@@ -41,6 +36,7 @@ async def create_notification(payload: NotificationRequest, current_user: dict =
             "notification_type": payload.notification_type,
             "user_id": payload.user_id,
             "template_code": payload.template_code,
+            "email": email
         },
         message="Notification enqueued successfully"
     )
