@@ -3,6 +3,7 @@ package push
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	firebase "firebase.google.com/go/v4"
@@ -48,6 +49,10 @@ func NewFCMService(ctx context.Context, projectID, credentialsPath string, timeo
 
 // send a push notification to a single device
 func (s *FCMService) SendNotification(ctx context.Context, deviceToken string, notification *models.PushNotification) (*models.NotificationResult, error) {
+
+	// trim whitespace from token
+	deviceToken = strings.TrimSpace(deviceToken)
+
 	result := &models.NotificationResult{
 		DeviceToken: deviceToken,
 		SentAt:      time.Now(),
@@ -141,6 +146,12 @@ func (s *FCMService) SendNotification(ctx context.Context, deviceToken string, n
 
 // sends notification to multiple devices
 func (s *FCMService) SendToMultipleDevices(ctx context.Context, deviceTokens []string, notification *models.PushNotification) ([]*models.NotificationResult, error) {
+
+	// trim whitespace from all tokens
+	for i := range deviceTokens {
+		deviceTokens[i] = strings.TrimSpace(deviceTokens[i])
+	}
+
 	results := make([]*models.NotificationResult, 0, len(deviceTokens))
 
 	// check circuit breaker
