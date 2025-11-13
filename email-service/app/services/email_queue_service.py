@@ -1,7 +1,7 @@
 import requests
 
 from ..config import Settings
-from ..schemas import EmailQueuePayload, EmailRequest, EmailResponse, RenderResponse
+from ..schemas import EmailQueueEnvelope, EmailRequest, EmailResponse, RenderResponse, EmailQueuePayload
 from .email_service import EmailService
 
 
@@ -10,14 +10,15 @@ class EmailQueueService:
         self._settings = settings
         self._email_service = email_service or EmailService(settings)
 
-    async def process_queue_data(self, data: EmailQueuePayload) -> None:
+    async def process_queue_data(self, data: EmailQueueEnvelope) -> None:
+        data = EmailQueuePayload(**data)
         context = self._build_context(data)
         template = self._fetch_render_template(data.template_code, context)
 
         email_request = EmailRequest(
             request_id=data.request_id,
             template_code=data.template_code,
-            to=[data.data.email],
+            to=data.email if data.email else [],
             subject=template.subject,
             body_html=template.content if template.format == "html" else None,
             body_text=template.content if template.format == "text" else None,
@@ -38,7 +39,7 @@ class EmailQueueService:
 
     def _build_context(self, data: EmailQueuePayload) -> dict:
         return {
-            "name": data.data.name,
-            "email": data.data.email,
-            **data.data.context,
+            "name": data.name,
+            "email": data.email,
+            **data.context,
         }
