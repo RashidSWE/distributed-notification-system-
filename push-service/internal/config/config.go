@@ -8,14 +8,14 @@ import (
 
 // app configuration
 type Config struct {
-	Server   ServerConfig
-	RabbitMQ RabbitMQConfig
-	Redis    RedisConfig
-
-	FCM       FCMConfig
-	Circuit   CircuitBreakerConfig
-	Retry     RetryConfig
-	RateLimit RateLimitConfig
+	Server           ServerConfig
+	RabbitMQ         RabbitMQConfig
+	Redis            RedisConfig
+	FCM              FCMConfig
+	Circuit          CircuitBreakerConfig
+	Retry            RetryConfig
+	RateLimit        RateLimitConfig
+	ExternalServices ExternalServicesConfig
 }
 
 // server configuration
@@ -74,6 +74,11 @@ type RateLimitConfig struct {
 	Window   int // window duration in seconds
 }
 
+// external services configuration
+type ExternalServicesConfig struct {
+	TemplateServiceURL string
+}
+
 func Load() *Config {
 	config := &Config{
 		Server: ServerConfig{
@@ -117,6 +122,9 @@ func Load() *Config {
 		RateLimit: RateLimitConfig{
 			Requests: getEnvAsInt("RATE_LIMIT_REQUESTS"),
 			Window:   getEnvAsInt("RATE_LIMIT_WINDOW"),
+		},
+		ExternalServices: ExternalServicesConfig{
+			TemplateServiceURL: getEnv("TEMPLATE_SERVICE_URL"),
 		},
 	}
 
