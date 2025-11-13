@@ -10,7 +10,7 @@ from aio_pika.abc import AbstractIncomingMessage
 from pydantic import ValidationError
 
 from .config import Settings
-from .schemas import EmailQueuePayload
+from .schemas import EmailQueueEnvelope
 from .services.email_service import EmailDeliveryError
 from .services.email_queue_service import EmailQueueService
 
@@ -91,7 +91,8 @@ class EmailQueueConsumer:
 
     async def _handle_message(self, message: AbstractIncomingMessage) -> None:
         try:
-            email_request = EmailQueuePayload.model_validate_json(message.body.decode())
+            envelope = EmailQueueEnvelope.model_validate_json(message.body.decode())
+            email_request = envelope.data
         except ValidationError as exc:
             logger.warning(f"invalid email payload dropped: {exc}")
             await message.reject(requeue=False)

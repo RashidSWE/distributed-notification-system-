@@ -26,8 +26,7 @@ class Settings(BaseSettings):
     rabbitmq_reconnect_delay_seconds: float = Field(default=5.0, alias="RABBITMQ_RECONNECT_DELAY")
     rabbitmq_status_queue: str = Field(default="email.status", alias="RABBITMQ_STATUS_QUEUE")
     rabbitmq_failed_queue: str = Field(default="email.failed", alias="RABBITMQ_FAILED_QUEUE")
-    user_service_endpoint: str = Field(..., alias="USER_SERVICE_ENDPOINT")
-    template_service_endpoint: str = Field(..., alias="TEMPLATE_SERVICE_ENDPOINT")
+    template_service_endpoint: HttpUrl = Field(..., alias="TEMPLATE_SERVICE_ENDPOINT")
 
     model_config = {
         "case_sensitive": False,

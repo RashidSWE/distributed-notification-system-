@@ -26,6 +26,7 @@ Copy `.env.example` to `.env` (or export variables) and set:
 - `RABBITMQ_RECONNECT_DELAY`
 - `RABBITMQ_STATUS_QUEUE`
 - `RABBITMQ_FAILED_QUEUE`
+- `TEMPLATE_SERVICE_ENDPOINT`
 
 ## Run locally
 
