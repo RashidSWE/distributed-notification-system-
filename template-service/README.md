@@ -29,6 +29,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8090
 - `GET /health`
 - `POST /templates/render`
 - `GET /templates/push/{template_code}` – returns push notification metadata (e.g., `PASSWORD_RESET_CODE`)
+- `POST /templates/push/render` – renders a push template with the supplied context and returns the substituted payload
 
 Example payload:
 
@@ -69,6 +70,36 @@ Example push response (`GET /templates/push/PASSWORD_RESET_CODE`):
   "sound": "notification.mp3",
   "badge": 1,
   "priority": 10
+}
+```
+
+Example push render request/response (`POST /templates/push/render`):
+
+```jsonc
+// Request
+{
+  "template_code": "PASSWORD_RESET_CODE",
+  "context": {
+    "reset_code": "483921",
+    "expires_at": "2024-05-12T14:30:00Z",
+    "request_time": "2024-05-12T14:00:00Z"
+  }
+}
+
+// Response (fields substituted)
+{
+  "code": "PASSWORD_RESET_CODE",
+  "title": "Verify your password reset",
+  "body": "Use code 483921 to finish resetting your password. It expires at 2024-05-12T14:30:00Z.",
+  "data": {
+    "type": "security_alert",
+    "alert_type": "reset_code",
+    "reset_code": "483921",
+    "expires_at": "2024-05-12T14:30:00Z",
+    "request_time": "2024-05-12T14:00:00Z",
+    "action_type": "deeplink",
+    "action_url": "myapp://reset-password"
+  }
 }
 ```
 

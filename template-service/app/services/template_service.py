@@ -4,7 +4,7 @@ from typing import Literal
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 from ..config import Settings
-from ..schemas import PushTemplateResponse, RenderRequest, TemplateKey
+from ..schemas import PushRenderRequest, PushTemplateResponse, RenderRequest, TemplateKey
 
 
 class TemplateError(RuntimeError):
@@ -128,8 +128,8 @@ class TemplateService:
             enable_async=False,
         )
         if not settings.template_cache:
-            self._env.cache = {} 
-        self._subject_env = Environment(autoescape=False)
+            self._env.cache = {}
+        self._string_env = Environment(autoescape=False)
 
     def render(self, request: RenderRequest) -> tuple[str, str]:
         definition = TEMPLATE_REGISTRY.get(request.template_key)
@@ -153,7 +153,7 @@ class TemplateService:
             raise TemplateSourceMissingError(f"template source {template_name} is missing.") from exc
 
         content = template.render(**render_context)
-        subject = self._subject_env.from_string(definition.subject_template).render(**render_context)
+        subject = self._string_env.from_string(definition.subject_template).render(**render_context)
         return subject.strip(), content
 
     def get_push_template(self, template_code: str) -> PushTemplateResponse:
@@ -161,3 +161,34 @@ class TemplateService:
         if not definition:
             raise TemplateNotRegisteredError(f"push template {template_code} is not registered.")
         return PushTemplateResponse(**asdict(definition))
+
+    def render_push_template(self, request: PushRenderRequest) -> PushTemplateResponse:
+        definition = PUSH_TEMPLATE_REGISTRY.get(request.template_code)
+        if not definition:
+            raise TemplateNotRegisteredError(f"push template {request.template_code} is not registered.")
+
+        render_context = {**request.context}
+
+        def render_value(value: str | None) -> str | None:
+            if value is None:
+                return None
+            return self._string_env.from_string(value).render(**render_context)
+
+        rendered_data = {key: render_value(value) for key, value in definition.data.items()}
+
+        return PushTemplateResponse(
+            code=definition.code,
+            name=definition.name,
+            description=definition.description,
+            category=definition.category,
+            type=definition.type,
+            title=render_value(definition.title),
+            body=render_value(definition.body),
+            image_url=render_value(definition.image_url),
+            icon_url=render_value(definition.icon_url),
+            data=rendered_data,
+            color=definition.color,
+            sound=definition.sound,
+            badge=definition.badge,
+            priority=definition.priority,
+        )
