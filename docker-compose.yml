@@ -62,8 +62,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
@@ -75,8 +77,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
@@ -88,8 +92,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
