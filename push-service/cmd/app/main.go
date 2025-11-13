@@ -14,6 +14,7 @@ import (
 	"github.com/zjoart/distributed-notification-system/push-service/internal/queue"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/server"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/service"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/template"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 
 	"github.com/joho/godotenv"
@@ -80,12 +81,21 @@ func main() {
 		cfg.Retry.Multiplier,
 	)
 
+	templateClient := template.NewClient(
+		cfg.ExternalServices.TemplateServiceURL,
+		10*time.Second,
+	)
+	logger.Info("Template service client initialized", logger.Fields{
+		"url": cfg.ExternalServices.TemplateServiceURL,
+	})
+
 	notificationService := service.NewNotificationService(
 		fcmService,
 		retryService,
 		redisCache,
 		cfg.RateLimit,
 		rabbitMQ,
+		templateClient,
 	)
 
 	healthHandler := handler.NewHealthHandler(rabbitMQ, redisCache)

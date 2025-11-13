@@ -3,21 +3,24 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zjoart/distributed-notification-system/push-service/internal/cache"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/models"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/template"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 )
 
 type NotificationService struct {
-	fcmService   *push.FCMService
-	retryService *RetryService
-	cache        *cache.RedisCache
-	rateLimit    config.RateLimitConfig
-	queue        QueuePublisher
+	fcmService     *push.FCMService
+	retryService   *RetryService
+	cache          *cache.RedisCache
+	rateLimit      config.RateLimitConfig
+	queue          QueuePublisher
+	templateClient *template.Client
 }
 
 type QueuePublisher interface {
@@ -30,13 +33,15 @@ func NewNotificationService(
 	cache *cache.RedisCache,
 	rateLimit config.RateLimitConfig,
 	queue QueuePublisher,
+	templateClient *template.Client,
 ) *NotificationService {
 	return &NotificationService{
-		fcmService:   fcmService,
-		retryService: retryService,
-		cache:        cache,
-		rateLimit:    rateLimit,
-		queue:        queue,
+		fcmService:     fcmService,
+		retryService:   retryService,
+		cache:          cache,
+		rateLimit:      rateLimit,
+		queue:          queue,
+		templateClient: templateClient,
 	}
 }
 
@@ -74,7 +79,7 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 		"device_count": len(msg.DeviceTokens),
 	}))
 
-	notification, err := s.prepareNotification(msg)
+	notification, err := s.prepareNotification(ctx, msg)
 	if err != nil {
 		logger.Error("Failed to prepare notification", logger.Merge(loggerDetails,
 			logger.WithError(
@@ -138,16 +143,82 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 }
 
 // prepare the notification content
-func (s *NotificationService) prepareNotification(msg *models.NotificationMessage) (*models.PushNotification, error) {
-
-	return &models.PushNotification{
+func (s *NotificationService) prepareNotification(ctx context.Context, msg *models.NotificationMessage) (*models.PushNotification, error) {
+	notification := &models.PushNotification{
 		Title:    msg.Title,
 		Body:     msg.Body,
 		ImageURL: msg.ImageURL,
 		Link:     msg.Link,
 		Data:     msg.Data,
 		Priority: msg.Priority,
-	}, nil
+	}
+
+	logDetails := logger.Merge(
+
+		logger.WithNotificationID(msg.ID),
+		logger.Fields{
+			"template_code": msg.TemplateCode,
+		},
+	)
+
+	// fetch template if template code is provided
+	if msg.TemplateCode != "" {
+		logger.Info("Fetching template for notification", logDetails)
+
+		tmpl, err := s.templateClient.GetPushTemplate(ctx, msg.TemplateCode)
+		if err != nil {
+			logger.Error("Failed to fetch template", logger.Merge(
+				logger.WithError(err),
+				logDetails,
+			))
+			return nil, fmt.Errorf("failed to fetch template: %w", err)
+		}
+
+		// apply template values with variable replacement
+		notification.Title = s.replaceVariables(tmpl.Title, msg.Variables)
+		notification.Body = s.replaceVariables(tmpl.Body, msg.Variables)
+
+		if tmpl.ImageURL != "" {
+			notification.ImageURL = tmpl.ImageURL
+		}
+
+		// merge template data with message data
+		if tmpl.Data != nil {
+			if notification.Data == nil {
+				notification.Data = make(map[string]interface{})
+			}
+			for key, value := range tmpl.Data {
+				notification.Data[key] = value
+			}
+		}
+
+		// override with message-specific data
+		if msg.Data != nil {
+			for key, value := range msg.Data {
+				notification.Data[key] = value
+			}
+		}
+
+		logger.Info("Template applied successfully", logger.Merge(logDetails, logger.Fields{
+			"title": notification.Title,
+		}))
+	}
+
+	return notification, nil
+}
+
+// replaceVariables replaces {{variable}} placeholders with actual values
+func (s *NotificationService) replaceVariables(text string, variables map[string]string) string {
+	if variables == nil {
+		return text
+	}
+
+	result := text
+	for key, value := range variables {
+		placeholder := fmt.Sprintf("{{%s}}", key)
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result
 }
 
 // send the notification to device tokens
