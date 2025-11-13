@@ -300,17 +300,36 @@ func (s *NotificationService) checkRateLimit(ctx context.Context, userID string)
 
 // publishes notification status to the status queue
 func (s *NotificationService) publishStatus(ctx context.Context, msg *models.NotificationMessage, results []*models.NotificationResult, status models.NotificationStatusEnum, message string, successCount, failedCount int) {
+	var errorMsg *string
+	if status == models.NotificationStatusFailed {
+		errorMsg = &message
+	}
+
+	// build metadata from results
+	metadata := map[string]interface{}{
+		"provider":      "FCM",
+		"success_count": successCount,
+		"failed_count":  failedCount,
+	}
+
+	// add device token info if available
+	if len(results) > 0 {
+		deviceTokens := make([]string, 0, len(results))
+		for _, result := range results {
+			deviceTokens = append(deviceTokens, result.DeviceToken)
+		}
+		metadata["device_tokens"] = deviceTokens
+	}
+
 	statusMsg := &models.NotificationStatusMessage{
-		RequestID:      msg.RequestID,
-		NotificationID: msg.ID,
-		UserID:         msg.UserID,
-		Status:         status,
-		Message:        message,
-		SentCount:      successCount,
-		FailedCount:    failedCount,
-		Results:        results,
-		Timestamp:      time.Now(),
-		CorrelationID:  msg.CorrelationID,
+		NotificationID:   msg.ID,
+		Status:           status,
+		Timestamp:        time.Now(),
+		Error:            errorMsg,
+		UserID:           msg.UserID,
+		NotificationType: msg.NotificationType,
+		TemplateCode:     msg.TemplateCode,
+		Metadata:         metadata,
 	}
 
 	if err := s.queue.PublishStatus(ctx, statusMsg); err != nil {
