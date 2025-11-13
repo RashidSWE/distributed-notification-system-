@@ -38,6 +38,7 @@ class PushTemplateResponse(BaseModel):
     sound: str | None = None
     badge: int | None = None
     priority: int | None = None
+    link: str = "https://example.com/welcome"
 
 
 class PushRenderRequest(BaseModel):
