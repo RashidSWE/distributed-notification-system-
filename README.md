@@ -135,7 +135,7 @@ git pull origin main
 docker-compose up --build
 ```
 
-* Stop services:
+* Stop services:make
 
 ```bash
 docker-compose down

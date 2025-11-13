@@ -1,0 +1,34 @@
+name: Go Tests Runner
+
+on:
+  push:
+    branches:
+      - feature/push-service
+  pull_request:
+    branches:
+      - feature/push-service
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24.2'
+
+    - name: Install dependencies
+      run: cd push-service && make tidy
+
+    - name: Run tests with coverage and race detection
+      run: cd push-service && make test-ci
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: push-service/coverage.out
+        retention-days: 14

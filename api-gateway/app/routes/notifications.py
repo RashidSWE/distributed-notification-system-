@@ -23,7 +23,7 @@ async def create_notification(payload: NotificationRequest, current_user: dict =
     
     payload.user_id = current_user["id"]
     email = current_user["email"]
-    
+
     message_dict = payload.model_dump()
     success = await publish_message(payload.notification_type.value, message_dict)
 
