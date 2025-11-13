@@ -58,11 +58,11 @@ func (r *RetryService) RetryWithBackoff(ctx context.Context, fn func() error) er
 		if attempt < r.maxAttempts-1 {
 			backoff := r.CalculateBackoff(attempt)
 
-			logger.Info("Retrying after backoff", logger.Fields{
-				"attempt": attempt + 1,
-				"backoff": backoff.String(),
-				"error":   err.Error(),
-			})
+			logger.Info("Retrying after backoff",
+				logger.Merge(logger.Fields{
+					"attempt": attempt + 1,
+					"backoff": backoff.String(),
+				}, logger.WithError(err)))
 
 			// wait for backoff period or context cancellation
 			select {

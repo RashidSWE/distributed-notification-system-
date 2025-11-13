@@ -134,10 +134,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      interval: 1h
+      timeout: 10s
+      retries: 2
+      start_period: 30s
     networks:
       - notification_net
 

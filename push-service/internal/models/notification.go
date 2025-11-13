@@ -105,16 +105,14 @@ type NotificationStatusResponse struct {
 
 // status queue message
 type NotificationStatusMessage struct {
-	RequestID      string                 `json:"request_id"`
-	NotificationID string                 `json:"notification_id"`
-	UserID         string                 `json:"user_id"`
-	Status         NotificationStatusEnum `json:"status"` // delivered or failed
-	Message        string                 `json:"message"`
-	SentCount      int                    `json:"sent_count"`
-	FailedCount    int                    `json:"failed_count"`
-	Results        []*NotificationResult  `json:"results,omitempty"`
-	Timestamp      time.Time              `json:"timestamp"`
-	CorrelationID  string                 `json:"correlation_id,omitempty"`
+	NotificationID   string                 `json:"notification_id"`
+	Status           NotificationStatusEnum `json:"status"`
+	Timestamp        time.Time              `json:"timestamp"`
+	Error            *string                `json:"error"`
+	UserID           string                 `json:"user_id"`
+	NotificationType string                 `json:"notification_type"`
+	TemplateCode     string                 `json:"template_code"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // validates notification message
