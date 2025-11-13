@@ -7,9 +7,9 @@ from ..schemas import EmailQueuePayload,UserProfile, RenderResponse, EmailRespon
 
 load_dotenv()
 class EmailQueueService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, email_service: EmailService | None = None) -> None:
         self._settings = settings
-        self._email_service = EmailService(self._settings)
+        self._email_service = email_service or EmailService(self._settings)
 
     async def process_queue_data(self, data: EmailQueuePayload) -> None:
         
@@ -21,11 +21,13 @@ class EmailQueueService:
         template_data = self.fetch_render_template(data.template_code, context)
         email_request = {
             "request_id": request_id,
+            "template_code": data.template_code,
             "to": [user_profile.email],
             "subject": template_data.subject,
             "body_html": template_data.content if template_data.format == "html" else None,
             "body_text": template_data.content if template_data.format == "text" else None,
-            "headers": metadata or {}
+            "headers": metadata or {},
+            "metadata": metadata or {},
         }
         email_request = EmailRequest(**email_request)
         await self._email_service.send_email(email_request)

@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, model_validator
@@ -18,6 +19,7 @@ class Attachment(BaseModel):
 
 class EmailRequest(BaseModel):
     request_id: str | None = None
+    template_code: str | None = None
     to: list[EmailStr] = Field(default_factory=list)
     cc: list[EmailStr] = Field(default_factory=list)
     bcc: list[EmailStr] = Field(default_factory=list)
@@ -26,6 +28,7 @@ class EmailRequest(BaseModel):
     body_html: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
     attachments: list[Attachment] = Field(default_factory=list)
+    metadata: dict[str, str] | None = None
 
     @model_validator(mode="after")
     def validate_payload(self) -> "EmailRequest":
@@ -86,3 +89,14 @@ class RenderResponse(BaseModel):
     format: Literal["html", "text"]
     subject: str
     content: str
+
+
+class DeliveryStatus(BaseModel):
+    request_id: str
+    status: Literal["sent", "failed"]
+    recipients: list[EmailStr]
+    template_code: str | None = None
+    metadata: dict[str, str] | None = None
+    error: str | None = None
+    attempts: int = 1
+    sent_at: datetime | None = None
