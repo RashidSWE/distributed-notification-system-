@@ -20,7 +20,7 @@ export const createUser = async (data: CreateUserInput) => {
   console.log("Creating user with data:", data);
   const hashedPassword = await hashPassword(data.password);
 
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name: data.name,
       email: data.email,
@@ -32,40 +32,53 @@ export const createUser = async (data: CreateUserInput) => {
     },
     include: { preference: true },
   });
+
+  // Exclude password before returning
+  const { password, ...userWithoutPassword } = user;
+  return userWithoutPassword;
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email } })
   if (!user) throw new Error("Invalid credentials");
 
   const valid = await comparePassword(password, user.password);
   if (!valid) throw new Error("Invalid credentials");
 
   const token = generateToken({ id: user.id, email: user.email, username: user.name });
-  return { user, token };
+  const { password: pwd, ...userWithoutPassword } = user;
+  return { user: userWithoutPassword, token };
 };
 
 export const updatePreferences = async (userId: string, prefs: PreferenceUpdateData) => {
-  prisma.preference.update({
+  await prisma.preference.update({
     where: { user_id: userId },
     data: prefs,
   });
 
-  return prisma.user.findUnique({ where: { id: userId }, include: { preference: true }});
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { preference: true }});
+  if (!user) throw new Error("User not found");
+
+  const { password, ...userWithoutPassword } = user;
+  return userWithoutPassword;
 };
 
 export const updatePushToken = async (userId: string, push_token: string) => {
-  return prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: userId },
     data: { push_token },
+    include: { preference: true },
   });
+
+  const { password, ...userWithoutPassword } = user;
+  return userWithoutPassword;
 };
 
 
 export const getUserById = async (userId: string) => {
   return prisma.user.findUnique({
     where: { id: userId },
-    include: { preference: true },
+    select: {id: true, name: true, email: true, push_token: true, preference: true}
   });
 }
 

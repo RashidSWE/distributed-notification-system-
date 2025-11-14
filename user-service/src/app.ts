@@ -1,42 +1,40 @@
-console.log("🔥 App starting...");
+console.log("App starting...");
 
 import Fastify from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import userRoutes from './routes/user.routes.js';
-
+import swaggerPlugin from './utils/swagger.js';
 
 const app = Fastify({ logger: true });
 const prisma = new PrismaClient();
-const fastify = Fastify();
 
-//
+// make prisma accessible via decorators
 app.decorate('prisma', prisma);
 
+// register plugins
+await app.register(swaggerPlugin);
 
-await fastify.register(userRoutes);
-await userRoutes(app);
+// register routes
+await app.register(userRoutes);
 
-
-
-
-// Health check
+// health check route
 app.get('/api/health', async (req, reply) => {
   try {
-    // Try a simple DB query
     await prisma.user.count();
     return { status: 'ok', db: 'connected' };
   } catch (err) {
     if (err instanceof Error)
-    return { status: 'error', db: 'disconnected', message: err.message };
+      return { status: 'error', db: 'disconnected', message: err.message };
   }
 });
 
 const start = async () => {
   try {
     await app.listen({ port: 5000, host: '0.0.0.0' });
-    console.log(`User Service running on port 5000`);
+    console.log('User Service running on port 5000');
+    console.log('Swagger Docs available at http://localhost:5000/docs');
   } catch (err) {
-    console.error(err);
+    app.log.error(err);
     process.exit(1);
   }
 };
