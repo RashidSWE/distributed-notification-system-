@@ -3,6 +3,7 @@ from pydantic import BaseModel, EmailStr
 import httpx
 import uuid
 import os
+from datetime import datetime
 
 router = APIRouter()
 
@@ -20,12 +21,13 @@ async def register_user(payload: RegisterRequest):
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.post(f"{USER_SERVICE_URL}/api/users/register", json=payload.dict())
-            if resp.status_code != 201:
+            if resp.status_code != 200:
                 raise HTTPException(
                     status_code=resp.status_code,
                     detail=f"User Service registration failed: {resp.text}"
                 )
-            user_data = resp.json()
+            user_data = resp.json().get("data")
+            print(user_data)
         except httpx.RequestError as e:
             raise HTTPException(status_code=503, detail=f"User Service unreachable: {e}")
 
@@ -42,17 +44,31 @@ async def register_user(payload: RegisterRequest):
         "request_id": str(uuid.uuid4())
     }
 
+    routing_keys = ["email", "push"]
     async with httpx.AsyncClient() as client:
-        try:
-            notif_resp = await client.post(f"{API_GATEWAY_URL}/api/v1/notifications", json=notification_payload,
-                                           headers={"Authorization": f"Bearer {user_data['token']}"})
-            if notif_resp.status_code != 202:
-                raise HTTPException(
-                    status_code=notif_resp.status_code,
-                    detail=f"Notification failed: {notif_resp.text}"
-                )
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=503, detail=f"Notification service unreachable: {e}")
+        for key in routing_keys:
+            payload = notification_payload.copy()
+            notification_payload["notification_type"] = key
+
+            if key == "push":
+                payload.update({
+                    "device_tokens": [user_data.get("push_token", "dummy_token")],
+                    "platform": "android",
+                    "priority": "high",
+                    "correlation_id": str(uuid.uuid4()),
+                    "scheduled_at": datetime.utcnow().isoformat() + "Z",
+                    "created_at": datetime.utcnow().isoformat() + "Z"
+                })
+            try:
+                notif_resp = await client.post(f"{API_GATEWAY_URL}/api/v1/notifications/", json=notification_payload)
+                print(notif_resp)
+                if notif_resp.status_code != 202:
+                    raise HTTPException(
+                        status_code=notif_resp.status_code,
+                        detail=f"Notification failed: {notif_resp.text}"
+                    )
+            except httpx.RequestError as e:
+                raise HTTPException(status_code=503, detail=f"Notification service unreachable: {e}")
 
     return {
         "success": True,
