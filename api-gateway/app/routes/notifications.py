@@ -26,8 +26,8 @@ async def create_notification(payload: NotificationRequest):
             detail="invalid notification type. Must be email or push"
         )
     
-    payload.user_id = current_user["id"]
-    email = current_user["email"]
+    # payload.user_id = current_user["id"]
+    # email = current_user["email"]
 
     message_dict = payload.model_dump()
     message_dict["notification_id"] = notification_id
