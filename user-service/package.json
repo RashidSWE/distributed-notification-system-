@@ -28,7 +28,8 @@
     "fastify-postgres": "^3.6.0",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "yamljs": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
