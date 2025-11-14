@@ -87,7 +87,7 @@ export const handlePushTokenUpdate = async (req: any, reply: FastifyReply) => {
     const user = await updatePushToken(req.user.id, push_token);
 
     return reply.send(
-      successResponse({ ...user },"Preferences updated successfully")
+      successResponse({ ...user },"Push token updated successfully")
     );
   } catch (err) {
     return reply.code(500).send(
