@@ -60,7 +60,7 @@ async def setup_rabbitmq():
     logger.info("RabbitMQ echange and queues initialized")
     return
 
-async def publish_message(routing_key: str, message: dict):
+async def publish_message(routing_keys, message: dict):
     """
     Publish message to RabbitMQ direct exchange 'notifications.direct'
     routing_key: email or push
@@ -76,15 +76,19 @@ async def publish_message(routing_key: str, message: dict):
         channel = await conn.channel()
         exchange = await channel.get_exchange(EXCHANGE_NAME)
 
-        await exchange.publish(
-            aio_pika.Message(
-                body=json.dumps(message, default=str).encode(),
-                content_type="application/json",
-                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
-            ),
+        if isinstance(routing_keys, str):
+            routing_keys = [routing_keys]
+        
+        for key in routing_keys:
+            await exchange.publish(
+                aio_pika.Message(
+                    body=json.dumps(message, default=str).encode(),
+                    content_type="application/json",
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+                ),
 
-            routing_key=routing_key
-        )
+                routing_key=key
+            )
         return True
     except Exception as e:
         print(f"Failed to publish message: {e}")

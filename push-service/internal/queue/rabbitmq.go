@@ -317,9 +317,9 @@ func (r *RabbitMQ) PublishFailed(ctx context.Context, notification *models.Notif
 func (r *RabbitMQ) PublishStatus(ctx context.Context, statusMsg *models.NotificationStatusMessage) error {
 	logDetails := logger.Merge(
 		logger.Fields{
-			"status":     statusMsg.Status,
-			"request_id": statusMsg.RequestID,
+			"status": statusMsg.Status,
 		},
+
 		logger.WithNotificationID(statusMsg.NotificationID),
 		logger.WithUserID(statusMsg.UserID),
 	)

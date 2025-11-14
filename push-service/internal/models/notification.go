@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // status of a notification
 type NotificationStatusEnum string
@@ -30,7 +33,6 @@ type CreateNotificationRequest struct {
 // user-specific data for notification variables
 type UserData struct {
 	Name string                 `json:"name"`
-	Link string                 `json:"link"`
 	Meta map[string]interface{} `json:"meta,omitempty"`
 }
 
@@ -44,24 +46,18 @@ type UpdateNotificationStatusRequest struct {
 
 // notification message from queue
 type NotificationMessage struct {
-	ID            string                 `json:"id"`
-	UserID        string                 `json:"user_id"`
-	DeviceTokens  []string               `json:"device_tokens"`
-	Platform      string                 `json:"platform"` // "ios", "android", "web"
-	TemplateID    string                 `json:"template_id,omitempty"`
-	TemplateCode  string                 `json:"template_code,omitempty"`
-	Title         string                 `json:"title"`
-	Body          string                 `json:"body"`
-	ImageURL      string                 `json:"image_url,omitempty"`
-	Link          string                 `json:"link,omitempty"`
-	Data          map[string]interface{} `json:"data,omitempty"`
-	Variables     map[string]string      `json:"variables,omitempty"`
-	Language      string                 `json:"language,omitempty"`
-	Priority      string                 `json:"priority,omitempty"` // "high", "normal"
-	CorrelationID string                 `json:"correlation_id,omitempty"`
-	RequestID     string                 `json:"request_id,omitempty"`
-	ScheduledAt   *time.Time             `json:"scheduled_at,omitempty"`
-	CreatedAt     time.Time              `json:"created_at"`
+	ID               string            `json:"id"`
+	NotificationType string            `json:"notification_type"` // "email", "push", "sms"
+	UserID           string            `json:"user_id"`
+	TemplateCode     string            `json:"template_code"`
+	DeviceTokens     []string          `json:"device_tokens"`
+	Variables        map[string]string `json:"variables,omitempty"`
+	Platform         string            `json:"platform,omitempty"` // "ios", "android", "web"
+	Priority         string            `json:"priority,omitempty"` // "high", "normal"
+	CorrelationID    string            `json:"correlation_id,omitempty"`
+	RequestID        string            `json:"request_id,omitempty"`
+	ScheduledAt      *time.Time        `json:"scheduled_at,omitempty"`
+	CreatedAt        time.Time         `json:"created_at,omitempty"`
 }
 
 type PushNotification struct {
@@ -109,16 +105,14 @@ type NotificationStatusResponse struct {
 
 // status queue message
 type NotificationStatusMessage struct {
-	RequestID      string                 `json:"request_id"`
-	NotificationID string                 `json:"notification_id"`
-	UserID         string                 `json:"user_id"`
-	Status         NotificationStatusEnum `json:"status"` // delivered or failed
-	Message        string                 `json:"message"`
-	SentCount      int                    `json:"sent_count"`
-	FailedCount    int                    `json:"failed_count"`
-	Results        []*NotificationResult  `json:"results,omitempty"`
-	Timestamp      time.Time              `json:"timestamp"`
-	CorrelationID  string                 `json:"correlation_id,omitempty"`
+	NotificationID   string                 `json:"notification_id"`
+	Status           NotificationStatusEnum `json:"status"`
+	Timestamp        time.Time              `json:"timestamp"`
+	Error            *string                `json:"error"`
+	UserID           string                 `json:"user_id"`
+	NotificationType string                 `json:"notification_type"`
+	TemplateCode     string                 `json:"template_code"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // validates notification message
@@ -132,8 +126,14 @@ func (n *NotificationMessage) Validate() error {
 	if len(n.DeviceTokens) == 0 {
 		return ErrNoDeviceTokens
 	}
-	if n.Title == "" && n.Body == "" && n.TemplateID == "" && n.TemplateCode == "" {
-		return ErrEmptyNotificationContent
+	if n.TemplateCode == "" {
+		return fmt.Errorf("template_code is required")
+	}
+	if n.NotificationType == "" {
+		return fmt.Errorf("notification_type is required")
+	}
+	if n.NotificationType != "push" {
+		return fmt.Errorf("notification_type must be 'push', got '%s'", n.NotificationType)
 	}
 	return nil
 }

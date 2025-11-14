@@ -17,16 +17,20 @@ docker-down: ## Stop all services
 	@echo "🛑 Stopping all services..."
 	docker compose down
 
+docker-clean: ## Stop all services and remove volumes
+	@echo "🧹 Cleaning all services and volumes..."
+	docker compose down -v
+
 docker-logs: ## Show logs from all services
 	docker compose logs -f
 
 docker-restart: ## Restart
-	@echo "🔄 Restarting push-service..."
+	@echo "🔄 Restarting "
 	docker compose restart
 
-docker-rebuild: ## Rebuild and restart push service
-	@echo "🔨 Rebuilding push-service..."
-	docker compose up -d --build push-service
+docker-rebuild: ## Rebuild and restart all services
+	@echo "🔨 Rebuilding all services..."
+	docker compose up -d --build
 
 docker-logs-push: ## Show logs from push service only
 	docker compose logs -f push-service

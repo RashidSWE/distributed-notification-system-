@@ -47,7 +47,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pushuser"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,8 +62,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
@@ -75,8 +77,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
@@ -88,8 +92,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
@@ -99,11 +105,12 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      - .env
+      - ./user-service/.env
     depends_on:
-      - postgres
-      - rabbitmq
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - notification_net
 
@@ -115,10 +122,6 @@ services:
     env_file:
       - ./push-service/.env
     environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_USER=pushuser
-      - POSTGRES_PASSWORD=pushpass
-      - POSTGRES_DB=pushdb
       - REDIS_HOST=redis
       - REDIS_PASSWORD=
       - RABBITMQ_HOST=rabbitmq
@@ -129,14 +132,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      postgres:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 1h
+      timeout: 10s
+      retries: 2
+      start_period: 30s
     networks:
       - notification_net
 

@@ -1,5 +1,7 @@
+from datetime import datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import Any, Literal, Dict, Optional, List
+
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, model_validator
 
 
@@ -18,6 +20,7 @@ class Attachment(BaseModel):
 
 class EmailRequest(BaseModel):
     request_id: str | None = None
+    template_code: str | None = None
     to: list[EmailStr] = Field(default_factory=list)
     cc: list[EmailStr] = Field(default_factory=list)
     bcc: list[EmailStr] = Field(default_factory=list)
@@ -26,6 +29,7 @@ class EmailRequest(BaseModel):
     body_html: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
     attachments: list[Attachment] = Field(default_factory=list)
+    metadata: dict[str, str] | None = None
 
     @model_validator(mode="after")
     def validate_payload(self) -> "EmailRequest":
@@ -45,35 +49,22 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
 
 
-class UserPreferences(BaseModel):
-    email: bool
-    push: bool
-
-
-class UserData(BaseModel):
-    name: str
-    link: HttpUrl
-    meta: Optional[dict[str, str]] = None
-
-
-class UserProfile(BaseModel):
-    name: str
-    email: str
-    push_token: str
-    preference: UserPreferences
-    password: str
-
 class EmailQueuePayload(BaseModel):
+    notification_type: str
     user_id: str
     template_code: str
-    variables: UserData
-    request_id: str
-    priority: int
-    metadata: Optional[dict[str, str]] = None
+    request_id: str | None = None
+    name: Optional[str] = "User"
+    email: Optional[List[EmailStr]] = ["example@example.com"]
+    context: Optional[dict[str, Any]] = Field(default_factory=dict)
 
-class QueueData(BaseModel):
-    message_id: str
-    payload: EmailQueuePayload
+
+class EmailQueueEnvelope(BaseModel):
+    success: bool
+    data: Dict[str, Any]
+    error: Any | None = None
+    message: str | None = None
+    meta: dict[str, Any] | None = None
 
 
 class TemplateKey(str, Enum):
@@ -86,3 +77,14 @@ class RenderResponse(BaseModel):
     format: Literal["html", "text"]
     subject: str
     content: str
+
+
+class DeliveryStatus(BaseModel):
+    request_id: str
+    status: Literal["sent", "failed"]
+    recipients: list[EmailStr]
+    template_code: str | None = None
+    metadata: dict[str, str] | None = None
+    error: str | None = None
+    attempts: int = 1
+    sent_at: datetime | None = None

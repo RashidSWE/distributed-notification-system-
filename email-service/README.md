@@ -24,6 +24,9 @@ Copy `.env.example` to `.env` (or export variables) and set:
 - `RABBITMQ_QUEUE_NAME`
 - `RABBITMQ_PREFETCH`
 - `RABBITMQ_RECONNECT_DELAY`
+- `RABBITMQ_STATUS_QUEUE`
+- `RABBITMQ_FAILED_QUEUE`
+- `TEMPLATE_SERVICE_ENDPOINT`
 
 ## Run locally
 
@@ -33,6 +36,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
 Set `EMAIL_QUEUE_ENABLED=true` to have the app listen to RabbitMQ and process queued emails in the same process.
+
+When queue processing or HTTP sends complete, the service publishes delivery summaries to `RABBITMQ_STATUS_QUEUE` (and `RABBITMQ_FAILED_QUEUE` when the send ultimately fails).
 
 ## Docker
 
@@ -56,5 +61,3 @@ Example payload:
   "body_html": "<p>HTML body</p>"
 }
 ```
-
-

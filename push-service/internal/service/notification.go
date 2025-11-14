@@ -9,15 +9,17 @@ import (
 	"github.com/zjoart/distributed-notification-system/push-service/internal/config"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/models"
 	"github.com/zjoart/distributed-notification-system/push-service/internal/push"
+	"github.com/zjoart/distributed-notification-system/push-service/internal/template"
 	"github.com/zjoart/distributed-notification-system/push-service/pkg/logger"
 )
 
 type NotificationService struct {
-	fcmService   *push.FCMService
-	retryService *RetryService
-	cache        *cache.RedisCache
-	rateLimit    config.RateLimitConfig
-	queue        QueuePublisher
+	fcmService     *push.FCMService
+	retryService   *RetryService
+	cache          *cache.RedisCache
+	rateLimit      config.RateLimitConfig
+	queue          QueuePublisher
+	templateClient *template.Client
 }
 
 type QueuePublisher interface {
@@ -30,13 +32,15 @@ func NewNotificationService(
 	cache *cache.RedisCache,
 	rateLimit config.RateLimitConfig,
 	queue QueuePublisher,
+	templateClient *template.Client,
 ) *NotificationService {
 	return &NotificationService{
-		fcmService:   fcmService,
-		retryService: retryService,
-		cache:        cache,
-		rateLimit:    rateLimit,
-		queue:        queue,
+		fcmService:     fcmService,
+		retryService:   retryService,
+		cache:          cache,
+		rateLimit:      rateLimit,
+		queue:          queue,
+		templateClient: templateClient,
 	}
 }
 
@@ -74,7 +78,7 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 		"device_count": len(msg.DeviceTokens),
 	}))
 
-	notification, err := s.prepareNotification(msg)
+	notification, err := s.prepareNotification(ctx, msg)
 	if err != nil {
 		logger.Error("Failed to prepare notification", logger.Merge(loggerDetails,
 			logger.WithError(
@@ -138,16 +142,40 @@ func (s *NotificationService) ProcessNotification(ctx context.Context, msg *mode
 }
 
 // prepare the notification content
-func (s *NotificationService) prepareNotification(msg *models.NotificationMessage) (*models.PushNotification, error) {
+func (s *NotificationService) prepareNotification(ctx context.Context, msg *models.NotificationMessage) (*models.PushNotification, error) {
+	logDetails := logger.Merge(
+		logger.WithNotificationID(msg.ID),
+		logger.Fields{
+			"template_code": msg.TemplateCode,
+		},
+	)
 
-	return &models.PushNotification{
-		Title:    msg.Title,
-		Body:     msg.Body,
-		ImageURL: msg.ImageURL,
-		Link:     msg.Link,
-		Data:     msg.Data,
+	logger.Info("Rendering template for notification", logDetails)
+
+	tmpl, err := s.templateClient.RenderPushTemplate(ctx, msg.TemplateCode, msg.Variables)
+	if err != nil {
+		logger.Error("Failed to render template", logger.Merge(
+			logger.WithError(err),
+			logDetails,
+		))
+		return nil, fmt.Errorf("failed to render template: %w", err)
+	}
+
+	notification := &models.PushNotification{
+		Title:    tmpl.Title,
+		Body:     tmpl.Body,
+		ImageURL: tmpl.ImageURL,
+		Link:     tmpl.Link,
+		Data:     tmpl.Data,
 		Priority: msg.Priority,
-	}, nil
+	}
+
+	logger.Info("Template rendered successfully", logger.Merge(logDetails, logger.Fields{
+		"title":         notification.Title,
+		"template_name": tmpl.Name,
+	}))
+
+	return notification, nil
 }
 
 // send the notification to device tokens
@@ -272,17 +300,36 @@ func (s *NotificationService) checkRateLimit(ctx context.Context, userID string)
 
 // publishes notification status to the status queue
 func (s *NotificationService) publishStatus(ctx context.Context, msg *models.NotificationMessage, results []*models.NotificationResult, status models.NotificationStatusEnum, message string, successCount, failedCount int) {
+	var errorMsg *string
+	if status == models.NotificationStatusFailed {
+		errorMsg = &message
+	}
+
+	// build metadata from results
+	metadata := map[string]interface{}{
+		"provider":      "FCM",
+		"success_count": successCount,
+		"failed_count":  failedCount,
+	}
+
+	// add device token info if available
+	if len(results) > 0 {
+		deviceTokens := make([]string, 0, len(results))
+		for _, result := range results {
+			deviceTokens = append(deviceTokens, result.DeviceToken)
+		}
+		metadata["device_tokens"] = deviceTokens
+	}
+
 	statusMsg := &models.NotificationStatusMessage{
-		RequestID:      msg.RequestID,
-		NotificationID: msg.ID,
-		UserID:         msg.UserID,
-		Status:         status,
-		Message:        message,
-		SentCount:      successCount,
-		FailedCount:    failedCount,
-		Results:        results,
-		Timestamp:      time.Now(),
-		CorrelationID:  msg.CorrelationID,
+		NotificationID:   msg.ID,
+		Status:           status,
+		Timestamp:        time.Now(),
+		Error:            errorMsg,
+		UserID:           msg.UserID,
+		NotificationType: msg.NotificationType,
+		TemplateCode:     msg.TemplateCode,
+		Metadata:         metadata,
 	}
 
 	if err := s.queue.PublishStatus(ctx, statusMsg); err != nil {
