@@ -4,6 +4,7 @@ from app.routes.notifications import router as notification_router
 from app.core.rabbitmq import setup_rabbitmq
 from app.routes.register import router as register_router
 from app.core.consumer import start_status_consumer
+import asyncio
 
 app = FastAPI(title="API Gateway", version="1.0.0")
 
