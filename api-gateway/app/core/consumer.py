@@ -8,6 +8,8 @@ from app.core.db import AsyncSessionLocal, NotificationStatus
 from app.core.redis_client import get_redis
 from app.models.status import NotificationStatusUpdate
 import asyncio
+from sqlalchemy import insert
+
 
 logger = logging.getLogger(__name__)
 QUEUE_STATUS = "status.queue"

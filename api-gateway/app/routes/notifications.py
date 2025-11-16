@@ -18,8 +18,9 @@ async def create_notification(payload: NotificationRequest):
     """
     Accepts a notification request and publishes it to RabbitMQ
     """
-    notification_id = str(uuid.uuid4())
+    id = str(uuid.uuid4())
 
+    routing_key = payload.notification_type
     if payload.notification_type not in [NotificationType.email, NotificationType.push]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -30,16 +31,15 @@ async def create_notification(payload: NotificationRequest):
     # email = current_user["email"]
 
     message_dict = payload.model_dump()
-    message_dict["notification_id"] = notification_id
-
-    # Publish to both queues
-    routing_keys = ["email", "push"]  # always send to both
+    message_dict["id"] = id
+    message_dict["device_tokens"] = ["eeDkhnlpSbuDFfCEwB1fPf:APA91bFZcSTuNJJMB-UqdgHUwOsUP0FnvdYR16e0TGi6vrS494-YwH3T3dp_lEQaS1U3TkM13afI9paNpePHV7HmjbkB8y8mbeFy1vJeBSTyUVFn-iifwqU"]
+  # always send to both
     success = True
-    for key in routing_keys:
-        ok = await publish_message(key, message_dict)
-        if not ok:
-            logger.error(f"Failed to publish message to {key} queue")
-            success = False
+
+    ok = await publish_message(routing_key, message_dict)
+    if not ok:
+        logger.error(f"Failed to publish message to {routing_key} queue")
+        success = False
 
     if not success:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to enqueue message")
@@ -48,7 +48,7 @@ async def create_notification(payload: NotificationRequest):
     return APIResponse(
         success= True,
         data={
-            "notification_id": notification_id,
+            "id": id,
             "notification_type": payload.notification_type,
             "user_id": payload.user_id,
             "template_code": payload.template_code,
