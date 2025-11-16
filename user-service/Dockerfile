@@ -22,6 +22,9 @@ COPY . .
 # Build TypeScript to JavaScript
 RUN npm run build
 
+# Copy swagger.yaml to dist folder
+RUN cp src/swagger.yaml dist/swagger.yaml
+
 # Expose the Fastify port
 EXPOSE 5000
 
