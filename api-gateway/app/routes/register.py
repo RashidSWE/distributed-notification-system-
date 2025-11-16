@@ -34,11 +34,12 @@ async def register_user(payload: RegisterRequest):
     # 2️⃣ Call the existing notification endpoint in API Gateway
     notification_payload = {
         "notification_type": "email",
-        "notification_id": str(uuid.uuid4()),
+        "id": str(uuid.uuid4()),
         "user_id": user_data["id"],
         "template_code": "WELCOME_EMAIL",
         "variables": {
             "name": user_data["name"],
+            "email": [user_data["email"]],
             "link": "https://example.com/welcome"
         },
         "request_id": str(uuid.uuid4())
@@ -48,19 +49,21 @@ async def register_user(payload: RegisterRequest):
     async with httpx.AsyncClient() as client:
         for key in routing_keys:
             payload = notification_payload.copy()
-            notification_payload["notification_type"] = key
-
+            payload["notification_type"] = key
+            
+            print(payload)
             if key == "push":
                 payload.update({
-                    "device_tokens": [user_data.get("push_token", "dummy_token")],
+                    "device_tokens":["eeDkhnlpSbuDFfCEwB1fPf:APA91bFZcSTuNJJMB-UqdgHUwOsUP0FnvdYR16e0TGi6vrS494-YwH3T3dp_lEQaS1U3TkM13afI9paNpePHV7HmjbkB8y8mbeFy1vJeBSTyUVFn-iifwqU"],
                     "platform": "android",
                     "priority": "high",
                     "correlation_id": str(uuid.uuid4()),
                     "scheduled_at": datetime.utcnow().isoformat() + "Z",
                     "created_at": datetime.utcnow().isoformat() + "Z"
                 })
+                print(payload)
             try:
-                notif_resp = await client.post(f"{API_GATEWAY_URL}/api/v1/notifications/", json=notification_payload)
+                notif_resp = await client.post(f"{API_GATEWAY_URL}/api/v1/notifications/", json=payload)
                 print(notif_resp)
                 if notif_resp.status_code != 202:
                     raise HTTPException(
