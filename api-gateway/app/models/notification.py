@@ -21,6 +21,6 @@ class NotificationRequest(BaseModel):
     template_code: str
     variables: UserData
     request_id: str
-    priority: int = 1
+    priority: Optional[str] = None
     metadata: Optional[Dict] = None
 
